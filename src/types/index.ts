@@ -16,7 +16,10 @@ export interface Player {
 
 export interface Match {
   id: string;
-  date: Date;
+  date: {
+    seconds: number;
+    nanoseconds: number;
+  };
   players: {
     playerId: string;
     role: Role;
