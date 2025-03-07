@@ -140,7 +140,10 @@ export default function TeamMaker() {
     if (!teams) return
 
     const match: Omit<Match, 'id'> = {
-      date: new Date(),
+      date: {
+        seconds: Math.floor(new Date().getTime() / 1000),
+        nanoseconds: 0
+      },
       players: [
         ...teams.blue.map((p) => ({ playerId: p.player.id, role: p.role, team: 'BLUE' as const })),
         ...teams.red.map((p) => ({ playerId: p.player.id, role: p.role, team: 'RED' as const })),
