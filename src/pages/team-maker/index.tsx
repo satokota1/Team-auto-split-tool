@@ -272,7 +272,7 @@ export default function TeamMaker() {
         if (!player) return
 
         const isWinner = team === winner
-        const rateChange = isWinner ? 20 : -20
+        const rateChange = isWinner ? 50 : -50
 
         await updateDoc(playerRef, {
           [`rates.${role}`]: player.rates[role as GameRole] + rateChange,
@@ -506,6 +506,9 @@ export default function TeamMaker() {
                     <Heading size="md" color={`${color}.600`}>
                       {name}
                     </Heading>
+                    <Text fontSize="sm" color="gray.600" mb={2}>
+                      プレイヤーをクリックすると相手チームのプレイヤーと入れ替えることができます
+                    </Text>
                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
                       {team.map((player, teamIndex) => (
                         <Card
@@ -539,6 +542,21 @@ export default function TeamMaker() {
                                     }}
                                   >
                                     {otherPlayer.player.name} ({otherPlayer.role})
+                                    {' '}
+                                    {(() => {
+                                      const currentRate = player.role === player.player.mainRole ? 
+                                        player.player.rates[player.role] : 
+                                        Math.round(player.player.rates[player.role] * 0.8)
+                                      const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
+                                        otherPlayer.player.rates[otherPlayer.role] : 
+                                        Math.round(otherPlayer.player.rates[otherPlayer.role] * 0.8)
+                                      const diff = otherRate - currentRate
+                                      return (
+                                        <Text as="span" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
+                                          ({diff > 0 ? '+' : ''}{diff})
+                                        </Text>
+                                      )
+                                    })()}
                                   </MenuItem>
                                 ))}
                               </MenuGroup>
