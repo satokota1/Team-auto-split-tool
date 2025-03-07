@@ -151,13 +151,13 @@ export default function TeamMaker() {
 
       // 希望1がFILLの場合は全ロールに追加
       if (player.preferredRoles[0] === 'FILL') {
-        Object.keys(primaryRoleGroups).forEach((gameRole) => {
-          primaryRoleGroups[gameRole as GameRole].push(player)
+        Object.values(GameRole).forEach((gameRole) => {
+          primaryRoleGroups[gameRole].push(player)
         })
       }
     })
 
-    const roles: GameRole[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
+    const roles: GameRole[] = [GameRole.TOP, GameRole.JUNGLE, GameRole.MID, GameRole.ADC, GameRole.SUP]
     let bestTeams: { blue: { player: Player; role: GameRole }[]; red: { player: Player; role: GameRole }[] } | null = null
     let minRateDifference = Infinity
     let maxPrimaryRoleCount = -1 // 希望1のロールで配置できたプレイヤーの数を追跡
