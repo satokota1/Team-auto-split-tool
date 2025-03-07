@@ -118,20 +118,20 @@ export default function TeamMaker() {
 
     // 各ロールのプレイヤーをグループ化（希望1のみ）
     const primaryRoleGroups: { [key in GameRole]: SelectedPlayer[] } = {
-      TOP: [],
-      JUNGLE: [],
-      MID: [],
-      ADC: [],
-      SUP: [],
+      [GameRole.TOP]: [],
+      [GameRole.JUNGLE]: [],
+      [GameRole.MID]: [],
+      [GameRole.ADC]: [],
+      [GameRole.SUP]: [],
     }
 
     // 各ロールのプレイヤーをグループ化（希望2とFILL）
     const secondaryRoleGroups: { [key in GameRole]: SelectedPlayer[] } = {
-      TOP: [],
-      JUNGLE: [],
-      MID: [],
-      ADC: [],
-      SUP: [],
+      [GameRole.TOP]: [],
+      [GameRole.JUNGLE]: [],
+      [GameRole.MID]: [],
+      [GameRole.ADC]: [],
+      [GameRole.SUP]: [],
     }
 
     selectedPlayers.forEach((player) => {
@@ -142,8 +142,8 @@ export default function TeamMaker() {
 
       // 希望2のロールとFILLを追加
       if (player.preferredRoles[1] === 'FILL') {
-        Object.keys(secondaryRoleGroups).forEach((gameRole) => {
-          secondaryRoleGroups[gameRole as GameRole].push(player)
+        Object.values(GameRole).forEach((gameRole) => {
+          secondaryRoleGroups[gameRole].push(player)
         })
       } else {
         secondaryRoleGroups[player.preferredRoles[1] as GameRole].push(player)
@@ -321,13 +321,12 @@ export default function TeamMaker() {
   };
 
   const getRoleColor = (role: GameRole) => {
-    const colors = {
-      TOP: 'red',
-      JUNGLE: 'green',
-      MID: 'blue',
-      ADC: 'purple',
-      SUP: 'orange',
-      FILL: 'gray'
+    const colors: { [key in GameRole]: string } = {
+      [GameRole.TOP]: 'red',
+      [GameRole.JUNGLE]: 'green',
+      [GameRole.MID]: 'blue',
+      [GameRole.ADC]: 'purple',
+      [GameRole.SUP]: 'orange'
     }
     return colors[role] || 'gray'
   }
@@ -463,7 +462,7 @@ export default function TeamMaker() {
                               handleRoleChange(index, 0, e.target.value as Role)
                             }
                           >
-                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                            {[...Object.values(GameRole), 'FILL'].map((role) => (
                               <option key={role} value={role}>
                                 {role}
                               </option>
@@ -478,7 +477,7 @@ export default function TeamMaker() {
                               handleRoleChange(index, 1, e.target.value as Role)
                             }
                           >
-                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                            {[...Object.values(GameRole), 'FILL'].map((role) => (
                               <option key={role} value={role}>
                                 {role}
                               </option>
