@@ -512,41 +512,38 @@ export default function TeamMaker() {
                           key={player.player.id}
                           bg={useColorModeValue('gray.50', 'gray.700')}
                           borderWidth="1px"
-                          cursor="pointer"
-                          onClick={() => {
-                            const otherTeam = name === 'チーム1' ? 'チーム2' : 'チーム1'
-                            const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
-                            const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
-                            const menu = document.createElement('select')
-                            menu.onchange = (e) => {
-                              const targetIndex = Number((e.target as HTMLSelectElement).value)
-                              handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, targetIndex)
-                            }
-                            const otherTeamPlayers = name === 'チーム1' ? teams.red : teams.blue
-                            otherTeamPlayers.forEach((p, i) => {
-                              const option = document.createElement('option')
-                              option.value = String(i)
-                              option.text = `${p.player.name} (${p.role})`
-                              menu.appendChild(option)
-                            })
-                            menu.click()
-                          }}
-                          _hover={{
-                            transform: 'translateY(-2px)',
-                            boxShadow: 'md',
-                          }}
                         >
-                          <VStack align="stretch" spacing={1}>
-                            <Text fontWeight="bold">{player.player.name}</Text>
-                            <Badge
-                              colorScheme={getRoleColor(player.role)}
-                            >
-                              {player.role}
-                            </Badge>
-                            <Text fontSize="sm" color="gray.500">
-                              レート: {player.role === player.player.mainRole ? player.player.rates[player.role] : Math.round(player.player.rates[player.role] * 0.8)}
-                            </Text>
-                          </VStack>
+                          <Menu>
+                            <MenuButton as={Box} cursor="pointer" w="100%" h="100%">
+                              <VStack align="stretch" spacing={1}>
+                                <Text fontWeight="bold">{player.player.name}</Text>
+                                <Badge
+                                  colorScheme={getRoleColor(player.role)}
+                                >
+                                  {player.role}
+                                </Badge>
+                                <Text fontSize="sm" color="gray.500">
+                                  レート: {player.role === player.player.mainRole ? player.player.rates[player.role] : Math.round(player.player.rates[player.role] * 0.8)}
+                                </Text>
+                              </VStack>
+                            </MenuButton>
+                            <MenuList>
+                              <MenuGroup title={`${name === 'チーム1' ? 'チーム2' : 'チーム1'}と交代`}>
+                                {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
+                                  <MenuItem
+                                    key={otherPlayer.player.id}
+                                    onClick={() => {
+                                      const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
+                                      const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                      handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, otherIndex)
+                                    }}
+                                  >
+                                    {otherPlayer.player.name} ({otherPlayer.role})
+                                  </MenuItem>
+                                ))}
+                              </MenuGroup>
+                            </MenuList>
+                          </Menu>
                         </Card>
                       ))}
                     </SimpleGrid>
