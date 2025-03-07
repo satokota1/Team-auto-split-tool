@@ -61,22 +61,17 @@ export default function NewPlayer() {
   const handleRankChange = (role: GameRole, rank: Rank) => {
     const newRoleRanks = { ...roleRanks, [role]: rank }
 
-    // UNRANKEDでないランクが設定されているかチェック
-    const hasNonUnrank = Object.values(newRoleRanks).some(r => r !== 'UNRANKED')
-    if (hasNonUnrank) {
-      // メインロール以外のランクを自動設定
+    // メインロールのランクが変更された場合、他のロールのランクを自動調整
+    if (role === mainRole && rank !== 'UNRANKED') {
       const ranks = Object.keys(RANK_RATES) as Rank[]
-      const roleRank = newRoleRanks[role]
-      if (roleRank !== 'UNRANKED') {
-        const rankIndex = ranks.indexOf(roleRank)
-        const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : roleRank
-        
-        Object.keys(newRoleRanks).forEach((r) => {
-          if (r !== role && newRoleRanks[r as GameRole] === 'UNRANKED') {
-            newRoleRanks[r as GameRole] = lowerRank
-          }
-        })
-      }
+      const rankIndex = ranks.indexOf(rank)
+      const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : rank
+
+      Object.keys(newRoleRanks).forEach((r) => {
+        if (r !== role) {
+          newRoleRanks[r as GameRole] = lowerRank
+        }
+      })
     }
 
     setRoleRanks(newRoleRanks)

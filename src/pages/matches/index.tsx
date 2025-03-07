@@ -9,11 +9,14 @@ import {
   Tr,
   Th,
   Td,
+  Text,
   VStack,
 } from '@chakra-ui/react'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { Match, Player } from '../../types'
+import Layout from '../../components/Layout'
+import Card from '../../components/Card'
 
 interface MatchWithPlayers extends Omit<Match, 'players'> {
   players: {
@@ -65,45 +68,49 @@ export default function Matches() {
   }, [])
 
   return (
-    <Container maxW="container.lg" py={10}>
-      <VStack spacing={8}>
-        <Heading>試合履歴</Heading>
+    <Layout>
+      <VStack spacing={6} align="stretch">
+        <Heading color="blue.600" fontSize={{ base: '2xl', md: '3xl' }}>
+          試合履歴
+        </Heading>
 
-        <Box overflowX="auto" width="100%">
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th>日時</Th>
-                <Th>ブルーチーム</Th>
-                <Th>レッドチーム</Th>
-                <Th>勝者</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {matches.map((match) => (
-                <Tr key={match.id}>
-                  <Td>
-                    {new Date(match.date.seconds * 1000).toLocaleString()}
-                  </Td>
-                  <Td>
-                    {match.players
-                      .filter((p) => p.team === 'BLUE')
-                      .map((p) => `${p.player?.name || '不明'} (${p.role})`)
-                      .join(', ')}
-                  </Td>
-                  <Td>
-                    {match.players
-                      .filter((p) => p.team === 'RED')
-                      .map((p) => `${p.player?.name || '不明'} (${p.role})`)
-                      .join(', ')}
-                  </Td>
-                  <Td>{match.winner}</Td>
+        <Card p={0}>
+          <Box overflowX="auto">
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>日時</Th>
+                  <Th>ブルーチーム</Th>
+                  <Th>レッドチーム</Th>
+                  <Th>勝者</Th>
                 </Tr>
-              ))}
-            </Tbody>
-          </Table>
-        </Box>
+              </Thead>
+              <Tbody>
+                {matches.map((match) => (
+                  <Tr key={match.id}>
+                    <Td>
+                      {new Date(match.date.seconds * 1000).toLocaleString()}
+                    </Td>
+                    <Td>
+                      {match.players
+                        .filter((p) => p.team === 'BLUE')
+                        .map((p) => `${p.player?.name || '不明'} (${p.role})`)
+                        .join(', ')}
+                    </Td>
+                    <Td>
+                      {match.players
+                        .filter((p) => p.team === 'RED')
+                        .map((p) => `${p.player?.name || '不明'} (${p.role})`)
+                        .join(', ')}
+                    </Td>
+                    <Td>{match.winner}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </Box>
+        </Card>
       </VStack>
-    </Container>
+    </Layout>
   )
 } 

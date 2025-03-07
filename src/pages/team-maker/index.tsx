@@ -444,46 +444,82 @@ export default function TeamMaker() {
         </SimpleGrid>
 
         {teams && (
-          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
-            {[
-              { team: teams.blue, name: 'チーム1', color: 'blue' },
-              { team: teams.red, name: 'チーム2', color: 'red' },
-            ].map(({ team, name, color }) => (
-              <Card key={name}>
-                <VStack align="stretch" spacing={4}>
-                  <Heading size="md" color={`${color}.600`}>
-                    {name}
-                  </Heading>
-                  <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
-                    {team.map((player) => (
-                      <Card
-                        key={player.player.id}
-                        bg={useColorModeValue('gray.50', 'gray.700')}
-                        borderWidth="1px"
-                      >
-                        <VStack align="stretch" spacing={1}>
-                          <Text fontWeight="bold">{player.player.name}</Text>
-                          <Badge
-                            colorScheme={getRoleColor(player.role)}
-                          >
-                            {player.role}
-                          </Badge>
-                          <Text fontSize="sm" color="gray.500">
-                            レート: {player.role === player.player.mainRole ? player.player.rates[player.role] : Math.round(player.player.rates[player.role] * 0.8)}
-                          </Text>
-                        </VStack>
-                      </Card>
-                    ))}
-                  </SimpleGrid>
-                  <Divider />
-                  <HStack justify="space-between">
-                    <Text fontWeight="bold">平均レート:</Text>
-                    <Text>{calculateAverageRate(team)}</Text>
-                  </HStack>
-                </VStack>
-              </Card>
-            ))}
-          </SimpleGrid>
+          <>
+            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+              {[
+                { team: teams.blue, name: 'チーム1', color: 'blue' },
+                { team: teams.red, name: 'チーム2', color: 'red' },
+              ].map(({ team, name, color }) => (
+                <Card key={name}>
+                  <VStack align="stretch" spacing={4}>
+                    <Heading size="md" color={`${color}.600`}>
+                      {name}
+                    </Heading>
+                    <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
+                      {team.map((player) => (
+                        <Card
+                          key={player.player.id}
+                          bg={useColorModeValue('gray.50', 'gray.700')}
+                          borderWidth="1px"
+                        >
+                          <VStack align="stretch" spacing={1}>
+                            <Text fontWeight="bold">{player.player.name}</Text>
+                            <Badge
+                              colorScheme={getRoleColor(player.role)}
+                            >
+                              {player.role}
+                            </Badge>
+                            <Text fontSize="sm" color="gray.500">
+                              レート: {player.role === player.player.mainRole ? player.player.rates[player.role] : Math.round(player.player.rates[player.role] * 0.8)}
+                            </Text>
+                          </VStack>
+                        </Card>
+                      ))}
+                    </SimpleGrid>
+                    <Divider />
+                    <HStack justify="space-between">
+                      <Text fontWeight="bold">平均レート:</Text>
+                      <Text>{calculateAverageRate(team)}</Text>
+                    </HStack>
+                  </VStack>
+                </Card>
+              ))}
+            </SimpleGrid>
+
+            <Card>
+              <VStack spacing={4} align="stretch">
+                <Heading size="md" color="gray.700">
+                  試合結果
+                </Heading>
+                <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                  <Button
+                    colorScheme="blue"
+                    onClick={() => handleMatchResult('BLUE')}
+                    size="lg"
+                  >
+                    チーム1の勝利
+                  </Button>
+                  <Button
+                    colorScheme="red"
+                    onClick={() => handleMatchResult('RED')}
+                    size="lg"
+                  >
+                    チーム2の勝利
+                  </Button>
+                  <Button
+                    colorScheme="purple"
+                    as="a"
+                    href="https://draftlol.dawe.gg/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    size="lg"
+                  >
+                    ドラフトツール
+                  </Button>
+                </SimpleGrid>
+              </VStack>
+            </Card>
+          </>
         )}
       </VStack>
     </Layout>
