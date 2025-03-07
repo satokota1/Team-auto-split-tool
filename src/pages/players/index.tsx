@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   Box,
-  Button,
   Container,
   Heading,
   Table,
@@ -10,13 +9,12 @@ import {
   Tr,
   Th,
   Td,
-  Stack,
   VStack,
+  Text,
 } from '@chakra-ui/react'
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { Player } from '../../types'
-import Link from 'next/link'
 
 export default function Players() {
   const [players, setPlayers] = useState<Player[]>([])
@@ -34,36 +32,20 @@ export default function Players() {
     fetchPlayers()
   }, [])
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteDoc(doc(db, 'players', id))
-      setPlayers(players.filter((player) => player.id !== id))
-    } catch (error) {
-      console.error('Error deleting player:', error)
-    }
-  }
-
   return (
     <Container maxW="container.lg" py={10}>
       <VStack spacing={8}>
-        <Stack direction="row" justify="space-between" width="100%">
-          <Heading>プレイヤー一覧</Heading>
-          <Link href="/players/new" passHref>
-            <Button colorScheme="blue">新規登録</Button>
-          </Link>
-        </Stack>
+        <Heading>プレイヤー一覧</Heading>
 
         <Box overflowX="auto" width="100%">
           <Table variant="simple">
             <Thead>
               <Tr>
-                <Th>プレイヤー名</Th>
+                <Th>名前</Th>
                 <Th>メインロール</Th>
-                <Th>勝敗数</Th>
+                <Th>勝利数</Th>
+                <Th>敗北数</Th>
                 <Th>勝率</Th>
-                <Th>メインレート</Th>
-                <Th>サブレート</Th>
-                <Th>操作</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -71,35 +53,16 @@ export default function Players() {
                 <Tr key={player.id}>
                   <Td>{player.name}</Td>
                   <Td>{player.mainRole}</Td>
-                  <Td>
-                    {player.stats.wins}勝{player.stats.losses}敗
-                  </Td>
+                  <Td>{player.stats.wins}</Td>
+                  <Td>{player.stats.losses}</Td>
                   <Td>
                     {player.stats.wins + player.stats.losses > 0
-                      ? Math.round(
+                      ? `${Math.round(
                           (player.stats.wins /
                             (player.stats.wins + player.stats.losses)) *
                             100
-                        )
-                      : 0}
-                    %
-                  </Td>
-                  <Td>{player.rates[player.mainRole]}</Td>
-                  <Td>
-                    {Math.min(
-                      ...Object.entries(player.rates)
-                        .filter(([role]) => role !== player.mainRole)
-                        .map(([, rate]) => rate)
-                    )}
-                  </Td>
-                  <Td>
-                    <Button
-                      colorScheme="red"
-                      size="sm"
-                      onClick={() => handleDelete(player.id)}
-                    >
-                      削除
-                    </Button>
+                        )}%`
+                      : '-'}
                   </Td>
                 </Tr>
               ))}

@@ -121,24 +121,56 @@ export default function TeamMaker() {
       })
     })
 
-    // 各ロールから1人ずつ選択
+    // 各ロールから1人ずつ選択してチームを作成
     const blueTeam: { player: Player; role: Role }[] = []
     const redTeam: { player: Player; role: Role }[] = []
+    const assignedPlayers = new Set<string>()
 
+    // 各ロールについて処理
     Object.entries(roleGroups).forEach(([role, players]) => {
-      if (players.length > 0) {
-        // レートの高い順にソート
-        players.sort((a, b) => {
-          const rateA = role === a.player.mainRole ? a.player.rates[role as Role] : a.player.rates[role as Role] * 0.8
-          const rateB = role === b.player.mainRole ? b.player.rates[role as Role] : b.player.rates[role as Role] * 0.8
-          return rateB - rateA
-        })
+      // まだ割り当てられていないプレイヤーをフィルタリング
+      const availablePlayers = players.filter(p => !assignedPlayers.has(p.player.id))
+      if (availablePlayers.length === 0) return
 
-        // 交互にチームに割り当て
-        if (blueTeam.length < 5) {
-          blueTeam.push({ player: players[0].player, role: role as Role })
-        } else {
-          redTeam.push({ player: players[0].player, role: role as Role })
+      // レートの高い順にソート
+      availablePlayers.sort((a, b) => {
+        const rateA = role === a.player.mainRole ? a.player.rates[role as Role] : a.player.rates[role as Role] * 0.8
+        const rateB = role === b.player.mainRole ? b.player.rates[role as Role] : b.player.rates[role as Role] * 0.8
+        return rateB - rateA
+      })
+
+      // チームに割り当て
+      const player = availablePlayers[0]
+      if (blueTeam.length < 5 && !assignedPlayers.has(player.player.id)) {
+        blueTeam.push({ player: player.player, role: role as Role })
+        assignedPlayers.add(player.player.id)
+      }
+    })
+
+    // 残りのプレイヤーをレッドチームに割り当て
+    selectedPlayers.forEach((player) => {
+      if (!assignedPlayers.has(player.player.id)) {
+        // 希望ロールの中から、まだ埋まっていないロールを探す
+        const availableRole = player.preferredRoles.find(role => 
+          !redTeam.some(p => p.role === role)
+        )
+        if (availableRole) {
+          redTeam.push({ player: player.player, role: availableRole })
+          assignedPlayers.add(player.player.id)
+        }
+      }
+    })
+
+    // まだ割り当てられていないロールがある場合、残りのプレイヤーを割り当て
+    const roles: Role[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
+    roles.forEach(role => {
+      if (!redTeam.some(p => p.role === role)) {
+        const availablePlayer = selectedPlayers.find(p => 
+          !assignedPlayers.has(p.player.id)
+        )
+        if (availablePlayer) {
+          redTeam.push({ player: availablePlayer.player, role })
+          assignedPlayers.add(availablePlayer.player.id)
         }
       }
     })

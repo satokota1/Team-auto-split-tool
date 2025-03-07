@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   Stack,
   VStack,
   useToast,
+  Text,
 } from '@chakra-ui/react'
 import { collection, addDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
@@ -20,16 +21,51 @@ import { useRouter } from 'next/router'
 export default function NewPlayer() {
   const [name, setName] = useState('')
   const [mainRole, setMainRole] = useState<Role>('TOP')
-  const [rank, setRank] = useState<Rank>('UNRANK')
-  const [rates, setRates] = useState<{ [key in Role]: number }>({
-    TOP: 0,
-    JUNGLE: 0,
-    MID: 0,
-    ADC: 0,
-    SUP: 0,
+  const [roleRanks, setRoleRanks] = useState<{ [key in Role]: Rank }>({
+    TOP: 'UNRANK',
+    JUNGLE: 'UNRANK',
+    MID: 'UNRANK',
+    ADC: 'UNRANK',
+    SUP: 'UNRANK',
   })
   const toast = useToast()
   const router = useRouter()
+
+  // ロールのランクが変更されたときに他のロールのランクを自動調整
+  const handleRankChange = (role: Role, rank: Rank) => {
+    const newRoleRanks = { ...roleRanks, [role]: rank }
+
+    // UNRANKでないランクが設定されているかチェック
+    const hasNonUnrank = Object.values(newRoleRanks).some(r => r !== 'UNRANK')
+    if (hasNonUnrank) {
+      // メインロール以外のランクを自動設定
+      const ranks = Object.keys(RANK_RATES) as Rank[]
+      const roleRank = newRoleRanks[role]
+      if (roleRank !== 'UNRANK') {
+        const rankIndex = ranks.indexOf(roleRank)
+        const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : roleRank
+        
+        Object.keys(newRoleRanks).forEach((r) => {
+          if (r !== role && newRoleRanks[r as Role] === 'UNRANK') {
+            newRoleRanks[r as Role] = lowerRank
+          }
+        })
+      }
+    }
+
+    setRoleRanks(newRoleRanks)
+  }
+
+  // レートを計算
+  const calculateRates = () => {
+    const rates: { [key in Role]: number } = {} as { [key in Role]: number }
+    Object.entries(roleRanks).forEach(([role, rank]) => {
+      rates[role as Role] = role === mainRole ? 
+        RANK_RATES[rank].main : 
+        RANK_RATES[rank].sub
+    })
+    return rates
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,7 +74,7 @@ export default function NewPlayer() {
       const player: Omit<Player, 'id'> = {
         name,
         mainRole,
-        rates,
+        rates: calculateRates(),
         stats: {
           wins: 0,
           losses: 0,
@@ -68,16 +104,6 @@ export default function NewPlayer() {
     }
   }
 
-  const handleRateChange = (role: Role, value: string) => {
-    const numValue = parseInt(value, 10)
-    if (isNaN(numValue)) return
-
-    setRates((prev) => ({
-      ...prev,
-      [role]: numValue,
-    }))
-  }
-
   return (
     <Container maxW="container.md" py={10}>
       <VStack spacing={8}>
@@ -101,28 +127,34 @@ export default function NewPlayer() {
               </Select>
             </FormControl>
 
-            <FormControl isRequired>
-              <FormLabel>ランク</FormLabel>
-              <Select value={rank} onChange={(e) => setRank(e.target.value as Rank)}>
-                {Object.keys(RANK_RATES).map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-
             <Box>
-              <FormLabel>ロール別レート</FormLabel>
+              <FormLabel>ロール別ランク</FormLabel>
               <Stack spacing={2}>
-                {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                {(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'] as Role[]).map((role) => (
                   <FormControl key={role}>
-                    <FormLabel>{role}</FormLabel>
-                    <Input
-                      type="number"
-                      value={rates[role as Role]}
-                      onChange={(e) => handleRateChange(role as Role, e.target.value)}
-                    />
+                    <FormLabel>
+                      {role}
+                      {role === mainRole && (
+                        <Text as="span" color="blue.500" ml={2}>
+                          (メインロール)
+                        </Text>
+                      )}
+                    </FormLabel>
+                    <Select
+                      value={roleRanks[role]}
+                      onChange={(e) => handleRankChange(role, e.target.value as Rank)}
+                    >
+                      {Object.keys(RANK_RATES).map((rank) => (
+                        <option key={rank} value={rank}>
+                          {rank}
+                        </option>
+                      ))}
+                    </Select>
+                    <Text fontSize="sm" color="gray.600">
+                      レート: {role === mainRole ? 
+                        RANK_RATES[roleRanks[role]].main : 
+                        RANK_RATES[roleRanks[role]].sub}
+                    </Text>
                   </FormControl>
                 ))}
               </Stack>
