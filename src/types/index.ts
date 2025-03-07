@@ -1,44 +1,57 @@
-export type Role = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUP' | 'FILL';
-export type GameRole = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUP';  // 実際のゲーム内ロール
-export type Rank = 'UNRANKED' | 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLAT' | 'EMERALD' | 'DIAMOND' | 'MASTER' | 'GRANDMASTER' | 'CHALLENGER';
+export type GameRole = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUP'
+export type Role = GameRole | 'FILL'
+
+export type Rank = 'UNRANKED' | 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'EMERALD' | 'DIAMOND' | 'MASTER' | 'GRANDMASTER' | 'CHALLENGER'
+
+export interface RankRate {
+  main: number
+  sub: number
+}
+
+export const RANK_RATES: { [key in Rank]: RankRate } = {
+  UNRANKED: { main: 0, sub: 0 },
+  IRON: { main: 10, sub: 8 },
+  BRONZE: { main: 20, sub: 16 },
+  SILVER: { main: 30, sub: 24 },
+  GOLD: { main: 40, sub: 32 },
+  PLATINUM: { main: 50, sub: 40 },
+  EMERALD: { main: 60, sub: 48 },
+  DIAMOND: { main: 70, sub: 56 },
+  MASTER: { main: 80, sub: 64 },
+  GRANDMASTER: { main: 90, sub: 72 },
+  CHALLENGER: { main: 100, sub: 80 }
+}
 
 export interface Player {
-  id: string;
-  name: string;
-  mainRole: GameRole;
-  rates: {
-    [key in GameRole]: number;
-  };
+  id: string
+  name: string
+  mainRole: GameRole
+  rates: { [key in GameRole]: number }
   stats: {
-    wins: number;
-    losses: number;
-  };
+    wins: number
+    losses: number
+  }
+}
+
+export interface SelectedPlayer {
+  player: Player
+  preferredRoles: [Role, Role]
+}
+
+export interface TeamPlayer {
+  player: Player
+  role: GameRole
+}
+
+export interface Teams {
+  blue: TeamPlayer[]
+  red: TeamPlayer[]
 }
 
 export interface Match {
-  id: string;
-  date: {
-    seconds: number;
-    nanoseconds: number;
-  };
-  players: {
-    playerId: string;
-    role: Role;
-    team: 'BLUE' | 'RED';
-  }[];
-  winner: 'BLUE' | 'RED';
-}
-
-export const RANK_RATES = {
-  UNRANKED: { main: 200, sub: 160 },
-  IRON: { main: 300, sub: 240 },
-  BRONZE: { main: 520, sub: 416 },
-  SILVER: { main: 760, sub: 608 },
-  GOLD: { main: 1000, sub: 800 },
-  PLAT: { main: 1240, sub: 992 },
-  EMERALD: { main: 1480, sub: 1184 },
-  DIAMOND: { main: 1640, sub: 1312 },
-  MASTER: { main: 1760, sub: 1408 },
-  GRANDMASTER: { main: 1860, sub: 1500 },
-  CHALLENGER: { main: 1980, sub: 1620 },
-} as const; 
+  id: string
+  date: string
+  blueTeam: TeamPlayer[]
+  redTeam: TeamPlayer[]
+  winner: 'BLUE' | 'RED'
+} 

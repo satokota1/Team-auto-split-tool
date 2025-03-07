@@ -24,14 +24,19 @@ import {
   MenuList,
   MenuGroup,
   MenuItem,
+  Badge,
+  IconButton,
+  Divider,
+  useColorModeValue,
 } from '@chakra-ui/react'
-import { SearchIcon } from '@chakra-ui/icons'
+import { SearchIcon, DeleteIcon, RepeatIcon } from '@chakra-ui/icons'
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { Player, Role, GameRole, Match } from '../../types'
+import Layout from '../../components/Layout'
 
 interface SelectedPlayer {
-  player: Player
+  player: Player & { id: string }
   preferredRoles: [Role, Role]
 }
 
@@ -315,290 +320,172 @@ export default function TeamMaker() {
     setTeams(newTeams);
   };
 
+  const getRoleColor = (role: GameRole) => {
+    const colors = {
+      TOP: 'red',
+      JUNGLE: 'green',
+      MID: 'blue',
+      ADC: 'purple',
+      SUP: 'orange',
+      FILL: 'gray'
+    }
+    return colors[role] || 'gray'
+  }
+
+  const calculateAverageRate = (team: { player: Player; role: GameRole }[]) => {
+    if (team.length === 0) return 0
+    const totalRate = team.reduce((sum, { player, role }) => {
+      const rate = role === player.mainRole ? 
+        player.rates[role] : 
+        Math.round(player.rates[role] * 0.8)
+      return sum + rate
+    }, 0)
+    return Math.round(totalRate / team.length)
+  }
+
   return (
-    <Container maxW="container.lg" py={10}>
-      <VStack spacing={8}>
-        <Heading>チーム自動振り分け</Heading>
+    <Layout>
+      <VStack spacing={8} align="stretch">
+        <HStack justify="space-between" align="center">
+          <Heading color="blue.600" fontSize={{ base: '2xl', md: '3xl' }}>
+            チーム分け
+          </Heading>
+          <Button
+            leftIcon={<RepeatIcon />}
+            colorScheme="blue"
+            onClick={createTeams}
+            isDisabled={selectedPlayers.length !== 10}
+            size="md"
+            boxShadow="md"
+            _hover={{ 
+              transform: 'translateY(-2px)',
+              boxShadow: 'lg'
+            }}
+          >
+            チームを作成
+          </Button>
+        </HStack>
 
-        <Stack spacing={4} width="100%">
-          <FormControl>
-            <FormLabel>プレイヤーを検索</FormLabel>
-            <InputGroup>
-              <InputLeftElement pointerEvents="none">
-                <SearchIcon color="gray.300" />
-              </InputLeftElement>
-              <Input
-                placeholder="プレイヤー名で検索"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </InputGroup>
-          </FormControl>
-
-          <Box>
-            <Heading size="md" mb={4}>プレイヤーリスト</Heading>
-            <Box maxH="300px" overflowY="auto">
-              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                {filteredPlayers
-                  .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
-                  .map((player) => (
-                    <Card key={player.id} cursor="pointer" onClick={() => handleAddPlayer(player)}>
-                      <CardBody>
-                        <VStack align="start" spacing={1}>
+        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+          <Card>
+            <VStack align="stretch" spacing={4}>
+              <Heading size="md" color="gray.700">
+                プレイヤー選択 ({selectedPlayers.length}/10)
+              </Heading>
+              <Box maxH="400px" overflowY="auto" px={2}>
+                <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
+                  {players
+                    .filter((p) => !selectedPlayers.some((sp) => sp.id === p.id))
+                    .map((player) => (
+                      <Card
+                        key={player.id}
+                        onClick={() => handleAddPlayer(player)}
+                        cursor="pointer"
+                        _hover={{
+                          transform: 'translateY(-2px)',
+                          boxShadow: 'md',
+                        }}
+                        bg={useColorModeValue('gray.50', 'gray.700')}
+                      >
+                        <VStack align="stretch" spacing={2}>
                           <Text fontWeight="bold">{player.name}</Text>
-                          <Text fontSize="sm" color="gray.600">
-                            メインロール: {player.mainRole}
-                          </Text>
-                          <Text fontSize="sm" color="gray.600">
+                          <Badge
+                            colorScheme={getRoleColor(player.mainRole)}
+                            alignSelf="flex-start"
+                          >
+                            {player.mainRole}
+                          </Badge>
+                          <Text fontSize="sm" color="gray.500">
                             レート: {player.rates[player.mainRole]}
                           </Text>
                         </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-              </SimpleGrid>
-            </Box>
-          </Box>
-
-          {selectedPlayers.length > 0 && (
-            <Box>
-              <Heading size="md" mb={4}>
-                選択済みプレイヤー ({selectedPlayers.length}/10)
-              </Heading>
-              <VStack spacing={4} align="stretch">
-                <SimpleGrid columns={5} spacing={4}>
-                  {selectedPlayers.slice(0, 5).map((selectedPlayer, index) => (
-                    <Card key={index} size="sm">
-                      <CardBody>
-                        <VStack spacing={2}>
-                          <HStack width="100%" justify="space-between">
-                            <Text fontWeight="bold" fontSize="sm">{selectedPlayer.player.name}</Text>
-                            <Button size="xs" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
-                              削除
-                            </Button>
-                          </HStack>
-                          <Text fontSize="xs" color="gray.600">
-                            メイン: {selectedPlayer.player.mainRole}
-                          </Text>
-                          <FormControl>
-                            <FormLabel fontSize="xs">希望1</FormLabel>
-                            <Select
-                              size="xs"
-                              value={selectedPlayer.preferredRoles[0]}
-                              onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
-                            >
-                              {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                                <option key={role} value={role}>
-                                  {role}
-                                </option>
-                              ))}
-                            </Select>
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel fontSize="xs">希望2</FormLabel>
-                            <Select
-                              size="xs"
-                              value={selectedPlayer.preferredRoles[1]}
-                              onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
-                            >
-                              {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                                <option key={role} value={role}>
-                                  {role}
-                                </option>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  ))}
+                      </Card>
+                    ))}
                 </SimpleGrid>
-                {selectedPlayers.length > 5 && (
-                  <SimpleGrid columns={5} spacing={4}>
-                    {selectedPlayers.slice(5, 10).map((selectedPlayer, index) => (
-                      <Card key={index} size="sm">
-                        <CardBody>
-                          <VStack spacing={2}>
-                            <HStack width="100%" justify="space-between">
-                              <Text fontWeight="bold" fontSize="sm">{selectedPlayer.player.name}</Text>
-                              <Button size="xs" colorScheme="red" onClick={() => handleRemovePlayer(index + 5)}>
-                                削除
-                              </Button>
-                            </HStack>
-                            <Text fontSize="xs" color="gray.600">
-                              メイン: {selectedPlayer.player.mainRole}
-                            </Text>
-                            <FormControl>
-                              <FormLabel fontSize="xs">希望1</FormLabel>
-                              <Select
-                                size="xs"
-                                value={selectedPlayer.preferredRoles[0]}
-                                onChange={(e) => handleRoleChange(index + 5, 0, e.target.value as Role)}
-                              >
-                                {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                                  <option key={role} value={role}>
-                                    {role}
-                                  </option>
-                                ))}
-                              </Select>
-                            </FormControl>
-                            <FormControl>
-                              <FormLabel fontSize="xs">希望2</FormLabel>
-                              <Select
-                                size="xs"
-                                value={selectedPlayer.preferredRoles[1]}
-                                onChange={(e) => handleRoleChange(index + 5, 1, e.target.value as Role)}
-                              >
-                                {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                                  <option key={role} value={role}>
-                                    {role}
-                                  </option>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </VStack>
-                        </CardBody>
+              </Box>
+            </VStack>
+          </Card>
+
+          <Card>
+            <VStack align="stretch" spacing={4}>
+              <Heading size="md" color="gray.700">
+                選択済みプレイヤー
+              </Heading>
+              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+                {selectedPlayers.map((player, index) => (
+                  <Card
+                    key={player.player.id}
+                    bg={useColorModeValue('white', 'gray.700')}
+                    borderWidth="1px"
+                  >
+                    <HStack justify="space-between">
+                      <VStack align="start" spacing={1}>
+                        <Text fontWeight="bold">{player.player.name}</Text>
+                        <Badge
+                          colorScheme={getRoleColor(player.player.mainRole)}
+                        >
+                          {player.player.mainRole}
+                        </Badge>
+                      </VStack>
+                      <IconButton
+                        icon={<DeleteIcon />}
+                        aria-label="Remove player"
+                        size="sm"
+                        colorScheme="red"
+                        variant="ghost"
+                        onClick={() => handleRemovePlayer(index)}
+                      />
+                    </HStack>
+                  </Card>
+                ))}
+              </SimpleGrid>
+            </VStack>
+          </Card>
+        </SimpleGrid>
+
+        {teams && (
+          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+            {[
+              { team: teams.blue, name: 'チーム1', color: 'blue' },
+              { team: teams.red, name: 'チーム2', color: 'red' },
+            ].map(({ team, name, color }) => (
+              <Card key={name}>
+                <VStack align="stretch" spacing={4}>
+                  <Heading size="md" color={`${color}.600`}>
+                    {name}
+                  </Heading>
+                  <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
+                    {team.map((player) => (
+                      <Card
+                        key={player.player.id}
+                        bg={useColorModeValue('gray.50', 'gray.700')}
+                        borderWidth="1px"
+                      >
+                        <VStack align="stretch" spacing={1}>
+                          <Text fontWeight="bold">{player.player.name}</Text>
+                          <Badge
+                            colorScheme={getRoleColor(player.role)}
+                          >
+                            {player.role}
+                          </Badge>
+                          <Text fontSize="sm" color="gray.500">
+                            レート: {player.role === player.player.mainRole ? player.player.rates[player.role] : Math.round(player.player.rates[player.role] * 0.8)}
+                          </Text>
+                        </VStack>
                       </Card>
                     ))}
                   </SimpleGrid>
-                )}
-              </VStack>
-            </Box>
-          )}
-
-          <Button 
-            colorScheme="blue" 
-            onClick={createTeams}
-            position="sticky"
-            bottom={4}
-            zIndex={1}
-            size="lg"
-            shadow="lg"
-          >
-            {teams ? 'チームを再生成' : 'チームを作成'}
-          </Button>
-
-          {teams && (
-            <Stack spacing={4}>
-              <Card bg="blue.50">
-                <CardHeader>
-                  <Heading size="md">ブルーチーム</Heading>
-                </CardHeader>
-                <CardBody>
-                  {teams.blue.map(({ player, role }, blueIndex) => (
-                    <HStack key={blueIndex} justify="space-between" spacing={4}>
-                      <VStack align="start" spacing={1}>
-                        <Text fontWeight="bold">
-                          {player.name} ({role})
-                        </Text>
-                        <Text fontSize="sm" color="gray.600">
-                          レート: {role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8)}
-                          {role !== player.mainRole && ' (メインロール以外: -20%)'}
-                        </Text>
-                      </VStack>
-                      <Menu>
-                        <MenuButton as={Button} size="sm">
-                          入れ替え
-                        </MenuButton>
-                        <MenuList>
-                          <MenuGroup title="レッドチームと入れ替え">
-                            {teams.red.map(({ player: redPlayer, role: redRole }, redIndex) => {
-                              const currentBlueRate = role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8);
-                              const currentRedRate = redRole === redPlayer.mainRole ? redPlayer.rates[redRole] : Math.round(redPlayer.rates[redRole] * 0.8);
-                              const rateChange = currentRedRate - currentBlueRate;
-                              return (
-                                <MenuItem
-                                  key={redIndex}
-                                  onClick={() => handleSwapPlayers('blue', blueIndex, 'red', redIndex)}
-                                >
-                                  <HStack justify="space-between" width="100%">
-                                    <Text>{redPlayer.name}</Text>
-                                    <Text color={rateChange > 0 ? "green.500" : rateChange < 0 ? "red.500" : "gray.500"}>
-                                      {rateChange > 0 ? `+${rateChange}` : rateChange}
-                                    </Text>
-                                  </HStack>
-                                </MenuItem>
-                              );
-                            })}
-                          </MenuGroup>
-                        </MenuList>
-                      </Menu>
-                    </HStack>
-                  ))}
-                  <Text mt={4} fontWeight="bold">チームレート: {calculateTeamRating(teams.blue)}</Text>
-                </CardBody>
+                  <Divider />
+                  <HStack justify="space-between">
+                    <Text fontWeight="bold">平均レート:</Text>
+                    <Text>{calculateAverageRate(team)}</Text>
+                  </HStack>
+                </VStack>
               </Card>
-
-              <Card bg="red.50">
-                <CardHeader>
-                  <Heading size="md">レッドチーム</Heading>
-                </CardHeader>
-                <CardBody>
-                  {teams.red.map(({ player, role }, redIndex) => (
-                    <HStack key={redIndex} justify="space-between" spacing={4}>
-                      <VStack align="start" spacing={1}>
-                        <Text fontWeight="bold">
-                          {player.name} ({role})
-                        </Text>
-                        <Text fontSize="sm" color="gray.600">
-                          レート: {role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8)}
-                          {role !== player.mainRole && ' (メインロール以外: -20%)'}
-                        </Text>
-                      </VStack>
-                      <Menu>
-                        <MenuButton as={Button} size="sm">
-                          入れ替え
-                        </MenuButton>
-                        <MenuList>
-                          <MenuGroup title="ブルーチームと入れ替え">
-                            {teams.blue.map(({ player: bluePlayer, role: blueRole }, blueIndex) => {
-                              const currentRedRate = role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8);
-                              const currentBlueRate = blueRole === bluePlayer.mainRole ? bluePlayer.rates[blueRole] : Math.round(bluePlayer.rates[blueRole] * 0.8);
-                              const rateChange = currentBlueRate - currentRedRate;
-                              return (
-                                <MenuItem
-                                  key={blueIndex}
-                                  onClick={() => handleSwapPlayers('red', redIndex, 'blue', blueIndex)}
-                                >
-                                  <HStack justify="space-between" width="100%">
-                                    <Text>{bluePlayer.name}</Text>
-                                    <Text color={rateChange > 0 ? "green.500" : rateChange < 0 ? "red.500" : "gray.500"}>
-                                      {rateChange > 0 ? `+${rateChange}` : rateChange}
-                                    </Text>
-                                  </HStack>
-                                </MenuItem>
-                              );
-                            })}
-                          </MenuGroup>
-                        </MenuList>
-                      </Menu>
-                    </HStack>
-                  ))}
-                  <Text mt={4} fontWeight="bold">チームレート: {calculateTeamRating(teams.red)}</Text>
-                </CardBody>
-              </Card>
-
-              <HStack spacing={4}>
-                <Button colorScheme="blue" onClick={() => handleMatchResult('BLUE')}>
-                  ブルーチームの勝利
-                </Button>
-                <Button colorScheme="red" onClick={() => handleMatchResult('RED')}>
-                  レッドチームの勝利
-                </Button>
-                <Button
-                  colorScheme="purple"
-                  as="a"
-                  href="https://draftlol.dawe.gg/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  ドラフトツール
-                </Button>
-              </HStack>
-            </Stack>
-          )}
-        </Stack>
+            ))}
+          </SimpleGrid>
+        )}
       </VStack>
-    </Container>
+    </Layout>
   )
 } 
