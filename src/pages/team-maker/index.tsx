@@ -6,13 +6,21 @@ import {
   FormControl,
   FormLabel,
   Heading,
+  Input,
   Select,
   Stack,
   VStack,
   Text,
   HStack,
   useToast,
+  SimpleGrid,
+  Card,
+  CardBody,
+  CardHeader,
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react'
+import { SearchIcon } from '@chakra-ui/icons'
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { Player, Role, Match } from '../../types'
@@ -29,6 +37,7 @@ export default function TeamMaker() {
     blue: { player: Player; role: Role }[]
     red: { player: Player; role: Role }[]
   } | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const toast = useToast()
 
   useEffect(() => {
@@ -44,10 +53,11 @@ export default function TeamMaker() {
     fetchPlayers()
   }, [])
 
-  const handleAddPlayer = (playerId: string) => {
-    const player = players.find((p) => p.id === playerId)
-    if (!player) return
+  const filteredPlayers = players.filter((player) =>
+    player.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
+  const handleAddPlayer = (player: Player) => {
     if (selectedPlayers.length >= 10) {
       toast({
         title: 'エラー',
@@ -202,57 +212,83 @@ export default function TeamMaker() {
 
         <Stack spacing={4} width="100%">
           <FormControl>
-            <FormLabel>プレイヤーを選択</FormLabel>
-            <Select onChange={(e) => handleAddPlayer(e.target.value)}>
-              <option value="">プレイヤーを選択</option>
-              {players
-                .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
-                .map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-            </Select>
+            <FormLabel>プレイヤーを検索</FormLabel>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <SearchIcon color="gray.300" />
+              </InputLeftElement>
+              <Input
+                placeholder="プレイヤー名で検索"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </InputGroup>
           </FormControl>
 
-          {selectedPlayers.map((selectedPlayer, index) => (
-            <Box key={index} p={4} borderWidth={1} borderRadius="md">
-              <HStack justify="space-between">
-                <Text>{selectedPlayer.player.name}</Text>
-                <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
-                  削除
-                </Button>
-              </HStack>
-              <Stack direction="row" mt={2}>
-                <FormControl>
-                  <FormLabel>希望ロール1</FormLabel>
-                  <Select
-                    value={selectedPlayer.preferredRoles[0]}
-                    onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
-                  >
-                    {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>希望ロール2</FormLabel>
-                  <Select
-                    value={selectedPlayer.preferredRoles[1]}
-                    onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
-                  >
-                    {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
+            {filteredPlayers
+              .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
+              .map((player) => (
+                <Card key={player.id} cursor="pointer" onClick={() => handleAddPlayer(player)}>
+                  <CardBody>
+                    <Text fontWeight="bold">{player.name}</Text>
+                    <Text fontSize="sm" color="gray.600">
+                      メインロール: {player.mainRole}
+                    </Text>
+                  </CardBody>
+                </Card>
+              ))}
+          </SimpleGrid>
+
+          {selectedPlayers.length > 0 && (
+            <Box>
+              <Heading size="md" mb={4}>
+                選択済みプレイヤー
+              </Heading>
+              <Stack spacing={4}>
+                {selectedPlayers.map((selectedPlayer, index) => (
+                  <Card key={index}>
+                    <CardBody>
+                      <HStack justify="space-between">
+                        <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
+                        <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
+                          削除
+                        </Button>
+                      </HStack>
+                      <Stack direction="row" mt={2}>
+                        <FormControl>
+                          <FormLabel>希望ロール1</FormLabel>
+                          <Select
+                            value={selectedPlayer.preferredRoles[0]}
+                            onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
+                          >
+                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>希望ロール2</FormLabel>
+                          <Select
+                            value={selectedPlayer.preferredRoles[1]}
+                            onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
+                          >
+                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    </CardBody>
+                  </Card>
+                ))}
               </Stack>
             </Box>
-          ))}
+          )}
 
           <Button colorScheme="blue" onClick={createTeams}>
             チームを作成
@@ -260,29 +296,33 @@ export default function TeamMaker() {
 
           {teams && (
             <Stack spacing={4}>
-              <Box p={4} borderWidth={1} borderRadius="md" bg="blue.50">
-                <Heading size="md" mb={4}>
-                  ブルーチーム
-                </Heading>
-                {teams.blue.map(({ player, role }, index) => (
-                  <Text key={index}>
-                    {player.name} ({role})
-                  </Text>
-                ))}
-                <Text mt={2}>チームレート: {calculateTeamRating(teams.blue)}</Text>
-              </Box>
+              <Card bg="blue.50">
+                <CardHeader>
+                  <Heading size="md">ブルーチーム</Heading>
+                </CardHeader>
+                <CardBody>
+                  {teams.blue.map(({ player, role }, index) => (
+                    <Text key={index}>
+                      {player.name} ({role})
+                    </Text>
+                  ))}
+                  <Text mt={2}>チームレート: {calculateTeamRating(teams.blue)}</Text>
+                </CardBody>
+              </Card>
 
-              <Box p={4} borderWidth={1} borderRadius="md" bg="red.50">
-                <Heading size="md" mb={4}>
-                  レッドチーム
-                </Heading>
-                {teams.red.map(({ player, role }, index) => (
-                  <Text key={index}>
-                    {player.name} ({role})
-                  </Text>
-                ))}
-                <Text mt={2}>チームレート: {calculateTeamRating(teams.red)}</Text>
-              </Box>
+              <Card bg="red.50">
+                <CardHeader>
+                  <Heading size="md">レッドチーム</Heading>
+                </CardHeader>
+                <CardBody>
+                  {teams.red.map(({ player, role }, index) => (
+                    <Text key={index}>
+                      {player.name} ({role})
+                    </Text>
+                  ))}
+                  <Text mt={2}>チームレート: {calculateTeamRating(teams.red)}</Text>
+                </CardBody>
+              </Card>
 
               <HStack spacing={4}>
                 <Button colorScheme="blue" onClick={() => handleMatchResult('BLUE')}>
