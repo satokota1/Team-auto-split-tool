@@ -336,7 +336,7 @@ export default function TeamMaker() {
           </FormControl>
 
           <Box>
-            <Heading size="md" mb={4}>『プレイヤー』リスト</Heading>
+            <Heading size="md" mb={4}>プレイヤーリスト</Heading>
             <Box maxH="300px" overflowY="auto">
               <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
                 {filteredPlayers
