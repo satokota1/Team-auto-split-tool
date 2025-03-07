@@ -19,6 +19,11 @@ import {
   CardHeader,
   InputGroup,
   InputLeftElement,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuGroup,
+  MenuItem,
 } from '@chakra-ui/react'
 import { SearchIcon } from '@chakra-ui/icons'
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
@@ -259,6 +264,21 @@ export default function TeamMaker() {
     }
   }
 
+  const handleSwapPlayers = (team1: 'blue' | 'red', index1: number, team2: 'blue' | 'red', index2: number) => {
+    if (!teams) return;
+
+    const newTeams = {
+      blue: [...teams.blue],
+      red: [...teams.red],
+    };
+
+    const temp = newTeams[team1][index1];
+    newTeams[team1][index1] = newTeams[team2][index2];
+    newTeams[team2][index2] = temp;
+
+    setTeams(newTeams);
+  };
+
   return (
     <Container maxW="container.lg" py={10}>
       <VStack spacing={8}>
@@ -347,7 +367,7 @@ export default function TeamMaker() {
           )}
 
           <Button colorScheme="blue" onClick={createTeams}>
-            チームを作成
+            {teams ? 'チームを再生成' : 'チームを作成'}
           </Button>
 
           {teams && (
@@ -357,10 +377,29 @@ export default function TeamMaker() {
                   <Heading size="md">ブルーチーム</Heading>
                 </CardHeader>
                 <CardBody>
-                  {teams.blue.map(({ player, role }, index) => (
-                    <Text key={index}>
-                      {player.name} ({role})
-                    </Text>
+                  {teams.blue.map(({ player, role }, blueIndex) => (
+                    <HStack key={blueIndex} justify="space-between">
+                      <Text>
+                        {player.name} ({role})
+                      </Text>
+                      <Menu>
+                        <MenuButton as={Button} size="sm">
+                          入れ替え
+                        </MenuButton>
+                        <MenuList>
+                          <MenuGroup title="レッドチームと入れ替え">
+                            {teams.red.map(({ player: redPlayer }, redIndex) => (
+                              <MenuItem
+                                key={redIndex}
+                                onClick={() => handleSwapPlayers('blue', blueIndex, 'red', redIndex)}
+                              >
+                                {redPlayer.name}
+                              </MenuItem>
+                            ))}
+                          </MenuGroup>
+                        </MenuList>
+                      </Menu>
+                    </HStack>
                   ))}
                   <Text mt={2}>チームレート: {calculateTeamRating(teams.blue)}</Text>
                 </CardBody>
@@ -371,10 +410,29 @@ export default function TeamMaker() {
                   <Heading size="md">レッドチーム</Heading>
                 </CardHeader>
                 <CardBody>
-                  {teams.red.map(({ player, role }, index) => (
-                    <Text key={index}>
-                      {player.name} ({role})
-                    </Text>
+                  {teams.red.map(({ player, role }, redIndex) => (
+                    <HStack key={redIndex} justify="space-between">
+                      <Text>
+                        {player.name} ({role})
+                      </Text>
+                      <Menu>
+                        <MenuButton as={Button} size="sm">
+                          入れ替え
+                        </MenuButton>
+                        <MenuList>
+                          <MenuGroup title="ブルーチームと入れ替え">
+                            {teams.blue.map(({ player: bluePlayer }, blueIndex) => (
+                              <MenuItem
+                                key={blueIndex}
+                                onClick={() => handleSwapPlayers('red', redIndex, 'blue', blueIndex)}
+                              >
+                                {bluePlayer.name}
+                              </MenuItem>
+                            ))}
+                          </MenuGroup>
+                        </MenuList>
+                      </Menu>
+                    </HStack>
                   ))}
                   <Text mt={2}>チームレート: {calculateTeamRating(teams.red)}</Text>
                 </CardBody>

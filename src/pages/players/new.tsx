@@ -15,13 +15,13 @@ import {
 } from '@chakra-ui/react'
 import { collection, addDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { Player, Role, Rank, RANK_RATES } from '../../types'
+import { Player, Role, Rank, RANK_RATES, GameRole } from '../../types'
 import { useRouter } from 'next/router'
 
 export default function NewPlayer() {
   const [name, setName] = useState('')
-  const [mainRole, setMainRole] = useState<Role>('TOP')
-  const [roleRanks, setRoleRanks] = useState<{ [key in Role]: Rank }>({
+  const [mainRole, setMainRole] = useState<GameRole>('TOP')
+  const [roleRanks, setRoleRanks] = useState<{ [key in GameRole]: Rank }>({
     TOP: 'UNRANK',
     JUNGLE: 'UNRANK',
     MID: 'UNRANK',
@@ -32,7 +32,7 @@ export default function NewPlayer() {
   const router = useRouter()
 
   // ロールのランクが変更されたときに他のロールのランクを自動調整
-  const handleRankChange = (role: Role, rank: Rank) => {
+  const handleRankChange = (role: GameRole, rank: Rank) => {
     const newRoleRanks = { ...roleRanks, [role]: rank }
 
     // UNRANKでないランクが設定されているかチェック
@@ -46,8 +46,8 @@ export default function NewPlayer() {
         const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : roleRank
         
         Object.keys(newRoleRanks).forEach((r) => {
-          if (r !== role && newRoleRanks[r as Role] === 'UNRANK') {
-            newRoleRanks[r as Role] = lowerRank
+          if (r !== role && newRoleRanks[r as GameRole] === 'UNRANK') {
+            newRoleRanks[r as GameRole] = lowerRank
           }
         })
       }
@@ -58,9 +58,9 @@ export default function NewPlayer() {
 
   // レートを計算
   const calculateRates = () => {
-    const rates: { [key in Role]: number } = {} as { [key in Role]: number }
+    const rates: { [key in GameRole]: number } = {} as { [key in GameRole]: number }
     Object.entries(roleRanks).forEach(([role, rank]) => {
-      rates[role as Role] = role === mainRole ? 
+      rates[role as GameRole] = role === mainRole ? 
         RANK_RATES[rank].main : 
         RANK_RATES[rank].sub
     })
@@ -118,7 +118,7 @@ export default function NewPlayer() {
 
             <FormControl isRequired>
               <FormLabel>メインロール</FormLabel>
-              <Select value={mainRole} onChange={(e) => setMainRole(e.target.value as Role)}>
+              <Select value={mainRole} onChange={(e) => setMainRole(e.target.value as GameRole)}>
                 {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
                   <option key={role} value={role}>
                     {role}
@@ -130,7 +130,7 @@ export default function NewPlayer() {
             <Box>
               <FormLabel>ロール別ランク</FormLabel>
               <Stack spacing={2}>
-                {(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'] as Role[]).map((role) => (
+                {(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'] as GameRole[]).map((role) => (
                   <FormControl key={role}>
                     <FormLabel>
                       {role}

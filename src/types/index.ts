@@ -5,9 +5,9 @@ export type Rank = 'UNRANK' | 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLAT' | '
 export interface Player {
   id: string;
   name: string;
-  mainRole: Role;
+  mainRole: GameRole;
   rates: {
-    [key in Role]: number;
+    [key in GameRole]: number;
   };
   stats: {
     wins: number;
