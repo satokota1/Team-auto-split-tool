@@ -444,6 +444,15 @@ export default function TeamMaker() {
                 <Button colorScheme="red" onClick={() => handleMatchResult('RED')}>
                   レッドチームの勝利
                 </Button>
+                <Button
+                  colorScheme="purple"
+                  as="a"
+                  href="https://draftlol.dawe.gg/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ドラフトツール
+                </Button>
               </HStack>
             </Stack>
           )}
