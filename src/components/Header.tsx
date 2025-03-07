@@ -14,7 +14,7 @@ export default function Header() {
         </NextLink>
         <Flex gap={4}>
           <NextLink href="/players" passHref>
-            <Link color="white">プレイヤー一覧</Link>
+            <Link color="white">プレイヤーリスト</Link>
           </NextLink>
           <NextLink href="/players/new" passHref>
             <Link color="white">プレイヤー登録</Link>

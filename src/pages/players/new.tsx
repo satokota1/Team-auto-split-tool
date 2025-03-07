@@ -22,11 +22,11 @@ export default function NewPlayer() {
   const [name, setName] = useState('')
   const [mainRole, setMainRole] = useState<GameRole>('TOP')
   const [roleRanks, setRoleRanks] = useState<{ [key in GameRole]: Rank }>({
-    TOP: 'UNRANK',
-    JUNGLE: 'UNRANK',
-    MID: 'UNRANK',
-    ADC: 'UNRANK',
-    SUP: 'UNRANK',
+    TOP: 'UNRANKED',
+    JUNGLE: 'UNRANKED',
+    MID: 'UNRANKED',
+    ADC: 'UNRANKED',
+    SUP: 'UNRANKED',
   })
   const toast = useToast()
   const router = useRouter()
@@ -35,18 +35,18 @@ export default function NewPlayer() {
   const handleRankChange = (role: GameRole, rank: Rank) => {
     const newRoleRanks = { ...roleRanks, [role]: rank }
 
-    // UNRANKでないランクが設定されているかチェック
-    const hasNonUnrank = Object.values(newRoleRanks).some(r => r !== 'UNRANK')
+    // UNRANKEDでないランクが設定されているかチェック
+    const hasNonUnrank = Object.values(newRoleRanks).some(r => r !== 'UNRANKED')
     if (hasNonUnrank) {
       // メインロール以外のランクを自動設定
       const ranks = Object.keys(RANK_RATES) as Rank[]
       const roleRank = newRoleRanks[role]
-      if (roleRank !== 'UNRANK') {
+      if (roleRank !== 'UNRANKED') {
         const rankIndex = ranks.indexOf(roleRank)
         const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : roleRank
         
         Object.keys(newRoleRanks).forEach((r) => {
-          if (r !== role && newRoleRanks[r as GameRole] === 'UNRANK') {
+          if (r !== role && newRoleRanks[r as GameRole] === 'UNRANKED') {
             newRoleRanks[r as GameRole] = lowerRank
           }
         })

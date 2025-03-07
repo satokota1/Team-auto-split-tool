@@ -47,15 +47,15 @@ export default function Home() {
         <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
           <Card height="100%">
             <CardHeader>
-              <Heading size="md">プレイヤー一覧</Heading>
+              <Heading size="md">プレイヤーリスト</Heading>
             </CardHeader>
             <CardBody display="flex" flexDirection="column">
               <Text mb={4} flex="1">
-                登録済みのプレイヤー一覧を表示します
+                登録済みのプレイヤーリストを表示します
               </Text>
               <NextLink href="/players" passHref>
                 <Button as={Link} colorScheme="blue" width="100%">
-                  プレイヤー一覧へ
+                  プレイヤーリストへ
                 </Button>
               </NextLink>
             </CardBody>

@@ -35,7 +35,7 @@ export default function Players() {
   return (
     <Container maxW="container.lg" py={10}>
       <VStack spacing={8}>
-        <Heading>プレイヤー一覧</Heading>
+        <Heading>プレイヤーリスト</Heading>
 
         <Text color="gray.600" fontSize="sm">
           ※プレイヤーの削除が必要な場合は、Discordで「こにー」まで連絡を！！
