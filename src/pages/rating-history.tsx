@@ -106,195 +106,199 @@ export default function RatingHistory() {
   const borderColor = useColorModeValue('gray.200', 'gray.700')
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <VStack spacing={8} align="stretch">
-        <Box textAlign="center" mb={8}>
-          <Heading size="2xl" mb={4}>レート変動ランキング</Heading>
-          <Text fontSize="lg" color="gray.600">
-            プレイヤーのレート推移と詳細な統計情報
-          </Text>
-        </Box>
+    <Box bg="gray.50" minH="100vh" py={8}>
+      <Container maxW="container.xl">
+        <VStack spacing={8} align="stretch">
+          <Box textAlign="center">
+            <Heading as="h1" size="2xl" color="blue.600" mb={4}>
+              レート変動ランキング
+            </Heading>
+            <Text fontSize="lg" color="gray.600">
+              プレイヤーのレート推移と詳細な統計情報を確認できます
+            </Text>
+          </Box>
 
-        <Grid templateColumns={{ base: 'repeat(1, 1fr)', lg: 'repeat(3, 1fr)' }} gap={6}>
-          {playerStats.map((player, index) => (
-            <GridItem key={index}>
-              <Card>
-                <CardBody>
-                  <HStack spacing={4}>
-                    <Avatar name={player.name} src={player.avatar} size="lg" />
-                    <Box flex="1">
-                      <Heading size="md">{player.name}</Heading>
-                      <HStack mt={2}>
-                        <Badge colorScheme="purple">Rate: {player.currentRate}</Badge>
-                        <Badge colorScheme={player.rateChange >= 0 ? 'green' : 'red'}>
-                          {player.rateChange >= 0 ? '+' : ''}{player.rateChange}
-                        </Badge>
-                      </HStack>
-                    </Box>
-                  </HStack>
-                </CardBody>
-              </Card>
-            </GridItem>
-          ))}
-        </Grid>
-
-        <Card>
-          <CardHeader>
-            <HStack justify="space-between">
-              <Heading size="lg">レート推移</Heading>
-              <Select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                width="200px"
-              >
-                <option value="week">過去1週間</option>
-                <option value="month">過去1ヶ月</option>
-                <option value="all">全期間</option>
-              </Select>
-            </HStack>
-          </CardHeader>
-          <CardBody>
-            <Box height="400px">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={rateHistoryData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={['dataMin - 100', 'dataMax + 100']} />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="rate"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
-          </CardBody>
-        </Card>
-
-        <Tabs isFitted variant="enclosed">
-          <TabList mb="1em">
-            <Tab>ロール別成績</Tab>
-            <Tab>勝率分布</Tab>
-            <Tab>総合評価</Tab>
-          </TabList>
-
-          <TabPanels>
-            <TabPanel>
-              <Grid templateColumns={{ base: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' }} gap={6}>
-                <GridItem>
-                  <Card>
-                    <CardHeader>
-                      <Heading size="md">ロール別勝率</Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <Box height="300px">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={roleData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="role" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="winRate" fill="#8884d8" name="勝率" />
-                          </BarChart>
-                        </ResponsiveContainer>
+          <Grid templateColumns={{ base: 'repeat(1, 1fr)', lg: 'repeat(3, 1fr)' }} gap={6}>
+            {playerStats.map((player, index) => (
+              <GridItem key={index}>
+                <Card>
+                  <CardBody>
+                    <HStack spacing={4}>
+                      <Avatar name={player.name} src={player.avatar} size="lg" />
+                      <Box flex="1">
+                        <Heading size="md">{player.name}</Heading>
+                        <HStack mt={2}>
+                          <Badge colorScheme="purple">Rate: {player.currentRate}</Badge>
+                          <Badge colorScheme={player.rateChange >= 0 ? 'green' : 'red'}>
+                            {player.rateChange >= 0 ? '+' : ''}{player.rateChange}
+                          </Badge>
+                        </HStack>
                       </Box>
-                    </CardBody>
-                  </Card>
-                </GridItem>
+                    </HStack>
+                  </CardBody>
+                </Card>
+              </GridItem>
+            ))}
+          </Grid>
 
-                <GridItem>
-                  <Card>
-                    <CardHeader>
-                      <Heading size="md">ロールバランス</Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <Box height="300px">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart data={radarData}>
-                            <PolarGrid />
-                            <PolarAngleAxis dataKey="role" />
-                            <PolarRadiusAxis />
-                            <Radar
-                              name="プレイヤー"
-                              dataKey="value"
-                              stroke="#8884d8"
-                              fill="#8884d8"
-                              fillOpacity={0.6}
-                            />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      </Box>
-                    </CardBody>
-                  </Card>
-                </GridItem>
-              </Grid>
-            </TabPanel>
+          <Card>
+            <CardHeader>
+              <HStack justify="space-between">
+                <Heading size="lg">レート推移</Heading>
+                <Select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  width="200px"
+                >
+                  <option value="week">過去1週間</option>
+                  <option value="month">過去1ヶ月</option>
+                  <option value="all">全期間</option>
+                </Select>
+              </HStack>
+            </CardHeader>
+            <CardBody>
+              <Box height="400px">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={rateHistoryData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis domain={['dataMin - 100', 'dataMax + 100']} />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="rate"
+                      stroke="#8884d8"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 8 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            </CardBody>
+          </Card>
 
-            <TabPanel>
-              <Card>
-                <CardBody>
-                  <Grid templateColumns={{ base: 'repeat(1, 1fr)', md: 'repeat(5, 1fr)' }} gap={4}>
-                    {roleData.map((role, index) => (
-                      <GridItem key={index}>
-                        <Stat>
-                          <StatLabel>{role.role}</StatLabel>
-                          <StatNumber>{role.winRate}%</StatNumber>
-                          <StatHelpText>
-                            <StatArrow type={role.winRate >= 50 ? 'increase' : 'decrease'} />
-                            {role.games}試合
-                          </StatHelpText>
-                        </Stat>
-                      </GridItem>
-                    ))}
-                  </Grid>
-                </CardBody>
-              </Card>
-            </TabPanel>
+          <Tabs isFitted variant="enclosed">
+            <TabList mb="1em">
+              <Tab>ロール別成績</Tab>
+              <Tab>勝率分布</Tab>
+              <Tab>総合評価</Tab>
+            </TabList>
 
-            <TabPanel>
-              <Card>
-                <CardBody>
-                  <VStack spacing={4} align="stretch">
-                    <Heading size="md">総合評価</Heading>
-                    <Grid templateColumns={{ base: 'repeat(1, 1fr)', md: 'repeat(3, 1fr)' }} gap={6}>
-                      <GridItem>
-                        <Stat>
-                          <StatLabel>平均レート</StatLabel>
-                          <StatNumber>1530</StatNumber>
-                          <StatHelpText>
-                            <StatArrow type="increase" />
-                            +30 (過去30日)
-                          </StatHelpText>
-                        </Stat>
-                      </GridItem>
-                      <GridItem>
-                        <Stat>
-                          <StatLabel>総試合数</StatLabel>
-                          <StatNumber>100</StatNumber>
-                          <StatHelpText>直近30日: 25試合</StatHelpText>
-                        </Stat>
-                      </GridItem>
-                      <GridItem>
-                        <Stat>
-                          <StatLabel>最高レート</StatLabel>
-                          <StatNumber>1570</StatNumber>
-                          <StatHelpText>2024/03/07達成</StatHelpText>
-                        </Stat>
-                      </GridItem>
+            <TabPanels>
+              <TabPanel>
+                <Grid templateColumns={{ base: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' }} gap={6}>
+                  <GridItem>
+                    <Card>
+                      <CardHeader>
+                        <Heading size="md">ロール別勝率</Heading>
+                      </CardHeader>
+                      <CardBody>
+                        <Box height="300px">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={roleData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="role" />
+                              <YAxis />
+                              <Tooltip />
+                              <Legend />
+                              <Bar dataKey="winRate" fill="#8884d8" name="勝率" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </CardBody>
+                    </Card>
+                  </GridItem>
+
+                  <GridItem>
+                    <Card>
+                      <CardHeader>
+                        <Heading size="md">ロールバランス</Heading>
+                      </CardHeader>
+                      <CardBody>
+                        <Box height="300px">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart data={radarData}>
+                              <PolarGrid />
+                              <PolarAngleAxis dataKey="role" />
+                              <PolarRadiusAxis />
+                              <Radar
+                                name="プレイヤー"
+                                dataKey="value"
+                                stroke="#8884d8"
+                                fill="#8884d8"
+                                fillOpacity={0.6}
+                              />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </Box>
+                      </CardBody>
+                    </Card>
+                  </GridItem>
+                </Grid>
+              </TabPanel>
+
+              <TabPanel>
+                <Card>
+                  <CardBody>
+                    <Grid templateColumns={{ base: 'repeat(1, 1fr)', md: 'repeat(5, 1fr)' }} gap={4}>
+                      {roleData.map((role, index) => (
+                        <GridItem key={index}>
+                          <Stat>
+                            <StatLabel>{role.role}</StatLabel>
+                            <StatNumber>{role.winRate}%</StatNumber>
+                            <StatHelpText>
+                              <StatArrow type={role.winRate >= 50 ? 'increase' : 'decrease'} />
+                              {role.games}試合
+                            </StatHelpText>
+                          </Stat>
+                        </GridItem>
+                      ))}
                     </Grid>
-                  </VStack>
-                </CardBody>
-              </Card>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </VStack>
-    </Container>
+                  </CardBody>
+                </Card>
+              </TabPanel>
+
+              <TabPanel>
+                <Card>
+                  <CardBody>
+                    <VStack spacing={4} align="stretch">
+                      <Heading size="md">総合評価</Heading>
+                      <Grid templateColumns={{ base: 'repeat(1, 1fr)', md: 'repeat(3, 1fr)' }} gap={6}>
+                        <GridItem>
+                          <Stat>
+                            <StatLabel>平均レート</StatLabel>
+                            <StatNumber>1530</StatNumber>
+                            <StatHelpText>
+                              <StatArrow type="increase" />
+                              +30 (過去30日)
+                            </StatHelpText>
+                          </Stat>
+                        </GridItem>
+                        <GridItem>
+                          <Stat>
+                            <StatLabel>総試合数</StatLabel>
+                            <StatNumber>100</StatNumber>
+                            <StatHelpText>直近30日: 25試合</StatHelpText>
+                          </Stat>
+                        </GridItem>
+                        <GridItem>
+                          <Stat>
+                            <StatLabel>最高レート</StatLabel>
+                            <StatNumber>1570</StatNumber>
+                            <StatHelpText>2024/03/07達成</StatHelpText>
+                          </Stat>
+                        </GridItem>
+                      </Grid>
+                    </VStack>
+                  </CardBody>
+                </Card>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+        </VStack>
+      </Container>
+    </Box>
   )
 } 

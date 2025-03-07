@@ -29,6 +29,7 @@ import Link from 'next/link'
 interface EditingState {
   id: string | null;
   newName: string;
+  newRate?: number;
 }
 
 export default function Players() {
@@ -63,14 +64,18 @@ export default function Players() {
   }
 
   const handleEditClick = (player: Player & { id: string }) => {
-    setEditing({ id: player.id, newName: player.name })
+    setEditing({ 
+      id: player.id, 
+      newName: player.name,
+      newRate: player.rates[player.mainRole]
+    })
   }
 
   const handleCancelEdit = () => {
-    setEditing({ id: null, newName: '' })
+    setEditing({ id: null, newName: '', newRate: undefined })
   }
 
-  const handleSaveEdit = async (playerId: string) => {
+  const handleSaveEdit = async (playerId: string, player: Player & { id: string }) => {
     if (!editing.newName.trim()) {
       toast({
         title: 'エラー',
@@ -82,23 +87,42 @@ export default function Players() {
       return
     }
 
+    if (editing.newRate === undefined || isNaN(editing.newRate)) {
+      toast({
+        title: 'エラー',
+        description: 'レートを入力してください',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
     try {
       const playerRef = doc(db, 'players', playerId)
+      const updatedRates = { ...player.rates }
+      updatedRates[player.mainRole] = editing.newRate
+
       await updateDoc(playerRef, {
-        name: editing.newName.trim()
+        name: editing.newName.trim(),
+        rates: updatedRates
       })
 
-      setPlayers(players.map(player => 
-        player.id === playerId 
-          ? { ...player, name: editing.newName.trim() }
-          : player
+      setPlayers(players.map(p => 
+        p.id === playerId 
+          ? { 
+              ...p, 
+              name: editing.newName.trim(),
+              rates: updatedRates
+            }
+          : p
       ))
 
-      setEditing({ id: null, newName: '' })
+      setEditing({ id: null, newName: '', newRate: undefined })
 
       toast({
         title: '更新完了',
-        description: 'プレイヤー名を更新しました',
+        description: 'プレイヤー情報を更新しました',
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -199,9 +223,23 @@ export default function Players() {
                         </Text>
                       </Td>
                       <Td borderColor={borderColor} isNumeric>
-                        <Text fontWeight="bold">
-                          {player.rates[player.mainRole]}
-                        </Text>
+                        {isEditing ? (
+                          <Input
+                            value={editing.newRate ?? ''}
+                            onChange={(e) => setEditing({ 
+                              ...editing, 
+                              newRate: parseInt(e.target.value) || undefined 
+                            })}
+                            size="sm"
+                            width="100px"
+                            type="number"
+                            textAlign="right"
+                          />
+                        ) : (
+                          <Text fontWeight="bold">
+                            {player.rates[player.mainRole]}
+                          </Text>
+                        )}
                       </Td>
                       <Td borderColor={borderColor}>
                         <HStack spacing={2} justify="flex-end">
@@ -212,7 +250,7 @@ export default function Players() {
                                 icon={<CheckIcon />}
                                 size="sm"
                                 colorScheme="green"
-                                onClick={() => handleSaveEdit(player.id)}
+                                onClick={() => handleSaveEdit(player.id, player)}
                               />
                               <IconButton
                                 aria-label="Cancel"
@@ -224,7 +262,7 @@ export default function Players() {
                             </>
                           ) : (
                             <IconButton
-                              aria-label="Edit name"
+                              aria-label="Edit"
                               icon={<EditIcon />}
                               size="sm"
                               colorScheme="blue"
