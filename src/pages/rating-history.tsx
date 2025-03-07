@@ -45,9 +45,9 @@ import {
 } from 'recharts'
 import { useEffect, useState } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
-import { db } from '../../lib/firebase'
-import { Player, GameRole } from '../../types'
-import Layout from '../../components/Layout'
+import { db } from '@/lib/firebase'
+import { Player, GameRole } from '@/types'
+import Layout from '@/components/Layout'
 
 export default function RatingHistory() {
   const [selectedPeriod, setSelectedPeriod] = useState('week')
@@ -82,7 +82,7 @@ export default function RatingHistory() {
   })).sort((a, b) => b.currentRate - a.currentRate)
 
   // ロール別の統計データを計算
-  const roleData = Object.values(GameRole).map(role => {
+  const roleData = (Object.values(GameRole) as GameRole[]).map(role => {
     const playersInRole = players.filter(p => p.mainRole === role)
     const totalGames = playersInRole.reduce((sum, p) => sum + p.stats.wins + p.stats.losses, 0)
     const totalWins = playersInRole.reduce((sum, p) => sum + p.stats.wins, 0)
@@ -101,6 +101,22 @@ export default function RatingHistory() {
     role: data.role,
     value: data.winRate,
   }))
+
+  // レート推移用のダミーデータ（後でFirebaseから取得するように変更）
+  const rateHistoryData = [
+    { date: '2024/03/01', rate: 1500 },
+    { date: '2024/03/02', rate: 1520 },
+    { date: '2024/03/03', rate: 1510 },
+    { date: '2024/03/04', rate: 1535 },
+    { date: '2024/03/05', rate: 1525 },
+    { date: '2024/03/06', rate: 1550 },
+    { date: '2024/03/07', rate: 1570 },
+  ]
+
+  // 総合統計の計算
+  const totalGames = players.reduce((sum, p) => sum + p.stats.wins + p.stats.losses, 0)
+  const avgRate = Math.round(players.reduce((sum, p) => sum + p.rates[p.mainRole], 0) / (players.length || 1))
+  const maxRate = Math.max(...players.map(p => p.rates[p.mainRole]))
 
   return (
     <Layout>
@@ -242,7 +258,7 @@ export default function RatingHistory() {
                     {roleData.map((role, index) => (
                       <GridItem key={index}>
                         <Stat>
-                          <StatLabel>{role.role}</StatLabel>
+                          <StatLabel>{String(role.role)}</StatLabel>
                           <StatNumber>{role.winRate}%</StatNumber>
                           <StatHelpText>
                             <StatArrow type={role.winRate >= 50 ? 'increase' : 'decrease'} />
@@ -265,25 +281,25 @@ export default function RatingHistory() {
                       <GridItem>
                         <Stat>
                           <StatLabel>平均レート</StatLabel>
-                          <StatNumber>1530</StatNumber>
+                          <StatNumber>{avgRate}</StatNumber>
                           <StatHelpText>
                             <StatArrow type="increase" />
-                            +30 (過去30日)
+                            最近の傾向
                           </StatHelpText>
                         </Stat>
                       </GridItem>
                       <GridItem>
                         <Stat>
                           <StatLabel>総試合数</StatLabel>
-                          <StatNumber>100</StatNumber>
-                          <StatHelpText>直近30日: 25試合</StatHelpText>
+                          <StatNumber>{totalGames}</StatNumber>
+                          <StatHelpText>全プレイヤーの合計</StatHelpText>
                         </Stat>
                       </GridItem>
                       <GridItem>
                         <Stat>
                           <StatLabel>最高レート</StatLabel>
-                          <StatNumber>1570</StatNumber>
-                          <StatHelpText>2024/03/07達成</StatHelpText>
+                          <StatNumber>{maxRate}</StatNumber>
+                          <StatHelpText>現在の最高値</StatHelpText>
                         </Stat>
                       </GridItem>
                     </Grid>
