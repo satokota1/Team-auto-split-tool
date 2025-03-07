@@ -133,76 +133,92 @@ export default function TeamMaker() {
       })
     })
 
-    // 各ロールから1人ずつ選択してチームを作成
-    const blueTeam: { player: Player; role: GameRole }[] = []
-    const redTeam: { player: Player; role: GameRole }[] = []
-    const assignedPlayers = new Set<string>()
     const roles: GameRole[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
+    let bestTeams: { blue: { player: Player; role: GameRole }[]; red: { player: Player; role: GameRole }[] } | null = null
+    let minRateDifference = Infinity
 
-    // 各ロールについて処理（ブルーチーム）
-    roles.forEach(role => {
-      if (blueTeam.length >= 5) return
+    // 複数回試行してベストな組み合わせを見つける
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const blueTeam: { player: Player; role: GameRole }[] = []
+      const redTeam: { player: Player; role: GameRole }[] = []
+      const assignedPlayers = new Set<string>()
 
-      // そのロールを希望するプレイヤーを取得
-      const availablePlayers = roleGroups[role]
-        .filter(p => !assignedPlayers.has(p.player.id))
-        .sort((a, b) => {
-          const rateA = role === a.player.mainRole ? a.player.rates[role] : a.player.rates[role] * 0.8
-          const rateB = role === b.player.mainRole ? b.player.rates[role] : b.player.rates[role] * 0.8
-          return rateB - rateA
-        })
+      // ランダムな順序でロールを処理
+      const shuffledRoles = [...roles].sort(() => Math.random() - 0.5)
 
-      if (availablePlayers.length > 0) {
-        const player = availablePlayers[0]
-        blueTeam.push({ player: player.player, role })
-        assignedPlayers.add(player.player.id)
+      // ブルーチーム作成
+      shuffledRoles.forEach(role => {
+        if (blueTeam.length >= 5) return
+
+        const availablePlayers = roleGroups[role]
+          .filter(p => !assignedPlayers.has(p.player.id))
+          .sort(() => Math.random() - 0.5) // ランダムに選択
+
+        if (availablePlayers.length > 0) {
+          const player = availablePlayers[0]
+          blueTeam.push({ player: player.player, role })
+          assignedPlayers.add(player.player.id)
+        }
+      })
+
+      // 残りのロールを埋める（ブルーチーム）
+      while (blueTeam.length < 5) {
+        const availablePlayer = selectedPlayers
+          .filter(p => !assignedPlayers.has(p.player.id))
+          .sort(() => Math.random() - 0.5)[0]
+        if (!availablePlayer) break
+
+        const availableRole = shuffledRoles.find(role => !blueTeam.some(p => p.role === role))
+        if (!availableRole) break
+
+        blueTeam.push({ player: availablePlayer.player, role: availableRole })
+        assignedPlayers.add(availablePlayer.player.id)
       }
-    })
 
-    // 残りのロールを埋める（ブルーチーム）
-    while (blueTeam.length < 5) {
-      const availablePlayer = selectedPlayers.find(p => !assignedPlayers.has(p.player.id))
-      if (!availablePlayer) break
+      // レッドチーム作成（残りのプレイヤーから）
+      shuffledRoles.forEach(role => {
+        if (redTeam.length >= 5) return
 
-      const availableRole = roles.find(role => !blueTeam.some(p => p.role === role))
-      if (!availableRole) break
+        const availablePlayers = roleGroups[role]
+          .filter(p => !assignedPlayers.has(p.player.id))
+          .sort(() => Math.random() - 0.5)
 
-      blueTeam.push({ player: availablePlayer.player, role: availableRole })
-      assignedPlayers.add(availablePlayer.player.id)
+        if (availablePlayers.length > 0) {
+          const player = availablePlayers[0]
+          redTeam.push({ player: player.player, role })
+          assignedPlayers.add(player.player.id)
+        }
+      })
+
+      // 残りのロールを埋める（レッドチーム）
+      while (redTeam.length < 5) {
+        const availablePlayer = selectedPlayers
+          .filter(p => !assignedPlayers.has(p.player.id))
+          .sort(() => Math.random() - 0.5)[0]
+        if (!availablePlayer) break
+
+        const availableRole = shuffledRoles.find(role => !redTeam.some(p => p.role === role))
+        if (!availableRole) break
+
+        redTeam.push({ player: availablePlayer.player, role: availableRole })
+        assignedPlayers.add(availablePlayer.player.id)
+      }
+
+      // チームレートの差を計算
+      const blueRating = calculateTeamRating(blueTeam)
+      const redRating = calculateTeamRating(redTeam)
+      const rateDifference = Math.abs(blueRating - redRating)
+
+      // より良い組み合わせが見つかった場合は更新
+      if (rateDifference < minRateDifference && blueTeam.length === 5 && redTeam.length === 5) {
+        minRateDifference = rateDifference
+        bestTeams = { blue: blueTeam, red: redTeam }
+      }
     }
 
-    // レッドチームの作成（同様のロジック）
-    roles.forEach(role => {
-      if (redTeam.length >= 5) return
-
-      const availablePlayers = roleGroups[role]
-        .filter(p => !assignedPlayers.has(p.player.id))
-        .sort((a, b) => {
-          const rateA = role === a.player.mainRole ? a.player.rates[role] : a.player.rates[role] * 0.8
-          const rateB = role === b.player.mainRole ? b.player.rates[role] : b.player.rates[role] * 0.8
-          return rateB - rateA
-        })
-
-      if (availablePlayers.length > 0) {
-        const player = availablePlayers[0]
-        redTeam.push({ player: player.player, role })
-        assignedPlayers.add(player.player.id)
-      }
-    })
-
-    // 残りのロールを埋める（レッドチーム）
-    while (redTeam.length < 5) {
-      const availablePlayer = selectedPlayers.find(p => !assignedPlayers.has(p.player.id))
-      if (!availablePlayer) break
-
-      const availableRole = roles.find(role => !redTeam.some(p => p.role === role))
-      if (!availableRole) break
-
-      redTeam.push({ player: availablePlayer.player, role: availableRole })
-      assignedPlayers.add(availablePlayer.player.id)
+    if (bestTeams) {
+      setTeams(bestTeams)
     }
-
-    setTeams({ blue: blueTeam, red: redTeam })
   }
 
   const handleMatchResult = async (winner: 'BLUE' | 'RED') => {
@@ -299,7 +315,7 @@ export default function TeamMaker() {
           </FormControl>
 
           <Box>
-            <Heading size="md" mb={4}>プレイヤー一覧</Heading>
+            <Heading size="md" mb={4}>『プレイヤー』一覧</Heading>
             <Box maxH="300px" overflowY="auto">
               <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
                 {filteredPlayers
