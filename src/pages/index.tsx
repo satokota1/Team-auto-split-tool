@@ -27,7 +27,24 @@ export default function Home() {
           </VStack>
         </Center>
 
-        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+        <Card size="lg" variant="elevated" mb={6}>
+          <CardHeader>
+            <Heading size="lg">チーム作成</Heading>
+          </CardHeader>
+          <CardBody display="flex" flexDirection="column">
+            <Text mb={4} fontSize="lg">
+              プレイヤーを選択してチームを自動振り分けします。
+              レートに基づいて最適なチーム分けを行い、各プレイヤーの希望ロールを考慮します。
+            </Text>
+            <NextLink href="/team-maker" passHref>
+              <Button as={Link} colorScheme="purple" size="lg" width="100%">
+                チーム作成へ
+              </Button>
+            </NextLink>
+          </CardBody>
+        </Card>
+
+        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
           <Card height="100%">
             <CardHeader>
               <Heading size="md">プレイヤー一覧</Heading>
@@ -55,22 +72,6 @@ export default function Home() {
               <NextLink href="/players/new" passHref>
                 <Button as={Link} colorScheme="green" width="100%">
                   プレイヤー登録へ
-                </Button>
-              </NextLink>
-            </CardBody>
-          </Card>
-
-          <Card height="100%">
-            <CardHeader>
-              <Heading size="md">チーム作成</Heading>
-            </CardHeader>
-            <CardBody display="flex" flexDirection="column">
-              <Text mb={4} flex="1">
-                プレイヤーを選択してチームを自動振り分けします
-              </Text>
-              <NextLink href="/team-maker" passHref>
-                <Button as={Link} colorScheme="purple" width="100%">
-                  チーム作成へ
                 </Button>
               </NextLink>
             </CardBody>

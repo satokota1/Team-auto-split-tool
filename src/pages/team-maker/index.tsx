@@ -318,54 +318,66 @@ export default function TeamMaker() {
           {selectedPlayers.length > 0 && (
             <Box>
               <Heading size="md" mb={4}>
-                選択済みプレイヤー
+                選択済みプレイヤー ({selectedPlayers.length}/10)
               </Heading>
-              <Stack spacing={4}>
+              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
                 {selectedPlayers.map((selectedPlayer, index) => (
-                  <Card key={index}>
+                  <Card key={index} size="sm">
                     <CardBody>
-                      <HStack justify="space-between">
-                        <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
-                        <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
-                          削除
-                        </Button>
-                      </HStack>
-                      <Stack direction="row" mt={2}>
-                        <FormControl>
-                          <FormLabel>希望ロール1</FormLabel>
-                          <Select
-                            value={selectedPlayer.preferredRoles[0]}
-                            onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
-                          >
-                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <FormControl>
-                          <FormLabel>希望ロール2</FormLabel>
-                          <Select
-                            value={selectedPlayer.preferredRoles[1]}
-                            onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
-                          >
-                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Stack>
+                      <VStack spacing={2}>
+                        <HStack width="100%" justify="space-between">
+                          <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
+                          <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
+                            削除
+                          </Button>
+                        </HStack>
+                        <HStack width="100%" spacing={2}>
+                          <FormControl flex={1}>
+                            <FormLabel fontSize="sm">希望1</FormLabel>
+                            <Select
+                              size="sm"
+                              value={selectedPlayer.preferredRoles[0]}
+                              onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
+                            >
+                              {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                                <option key={role} value={role}>
+                                  {role}
+                                </option>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <FormControl flex={1}>
+                            <FormLabel fontSize="sm">希望2</FormLabel>
+                            <Select
+                              size="sm"
+                              value={selectedPlayer.preferredRoles[1]}
+                              onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
+                            >
+                              {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                                <option key={role} value={role}>
+                                  {role}
+                                </option>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </HStack>
+                      </VStack>
                     </CardBody>
                   </Card>
                 ))}
-              </Stack>
+              </SimpleGrid>
             </Box>
           )}
 
-          <Button colorScheme="blue" onClick={createTeams}>
+          <Button 
+            colorScheme="blue" 
+            onClick={createTeams}
+            position="sticky"
+            bottom={4}
+            zIndex={1}
+            size="lg"
+            shadow="lg"
+          >
             {teams ? 'チームを再生成' : 'チームを作成'}
           </Button>
 
