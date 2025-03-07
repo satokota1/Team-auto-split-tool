@@ -94,9 +94,9 @@ export default function TeamMaker() {
   }
 
   const calculateTeamRating = (team: { player: Player; role: GameRole }[]) => {
-    return team.reduce((sum, { player, role }) => {
-      return sum + (role === player.mainRole ? player.rates[role] : player.rates[role] * 0.8)
-    }, 0)
+    return Math.round(team.reduce((sum, { player, role }) => {
+      return sum + (role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8))
+    }, 0))
   }
 
   const createTeams = () => {
@@ -298,21 +298,29 @@ export default function TeamMaker() {
             </InputGroup>
           </FormControl>
 
-          <Box maxH="300px" overflowY="auto">
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-              {filteredPlayers
-                .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
-                .map((player) => (
-                  <Card key={player.id} cursor="pointer" onClick={() => handleAddPlayer(player)}>
-                    <CardBody>
-                      <Text fontWeight="bold">{player.name}</Text>
-                      <Text fontSize="sm" color="gray.600">
-                        メインロール: {player.mainRole}
-                      </Text>
-                    </CardBody>
-                  </Card>
-                ))}
-            </SimpleGrid>
+          <Box>
+            <Heading size="md" mb={4}>プレイヤー一覧</Heading>
+            <Box maxH="300px" overflowY="auto">
+              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
+                {filteredPlayers
+                  .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
+                  .map((player) => (
+                    <Card key={player.id} cursor="pointer" onClick={() => handleAddPlayer(player)}>
+                      <CardBody>
+                        <VStack align="start" spacing={1}>
+                          <Text fontWeight="bold">{player.name}</Text>
+                          <Text fontSize="sm" color="gray.600">
+                            メインロール: {player.mainRole}
+                          </Text>
+                          <Text fontSize="sm" color="gray.600">
+                            レート: {player.rates[player.mainRole]}
+                          </Text>
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  ))}
+              </SimpleGrid>
+            </Box>
           </Box>
 
           {selectedPlayers.length > 0 && (
@@ -320,51 +328,105 @@ export default function TeamMaker() {
               <Heading size="md" mb={4}>
                 選択済みプレイヤー ({selectedPlayers.length}/10)
               </Heading>
-              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                {selectedPlayers.map((selectedPlayer, index) => (
-                  <Card key={index} size="sm">
-                    <CardBody>
-                      <VStack spacing={2}>
-                        <HStack width="100%" justify="space-between">
-                          <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
-                          <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
-                            削除
-                          </Button>
-                        </HStack>
-                        <HStack width="100%" spacing={2}>
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">希望1</FormLabel>
-                            <Select
-                              size="sm"
-                              value={selectedPlayer.preferredRoles[0]}
-                              onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
-                            >
-                              {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                                <option key={role} value={role}>
-                                  {role}
-                                </option>
-                              ))}
-                            </Select>
-                          </FormControl>
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">希望2</FormLabel>
-                            <Select
-                              size="sm"
-                              value={selectedPlayer.preferredRoles[1]}
-                              onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
-                            >
-                              {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
-                                <option key={role} value={role}>
-                                  {role}
-                                </option>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </HStack>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-                ))}
+              <SimpleGrid columns={2} spacing={4}>
+                <Box>
+                  <Text mb={2} color="blue.600" fontWeight="bold">ブルーサイド</Text>
+                  <VStack spacing={4} align="stretch">
+                    {selectedPlayers.slice(0, 5).map((selectedPlayer, index) => (
+                      <Card key={index} size="sm" bg="blue.50">
+                        <CardBody>
+                          <VStack spacing={2}>
+                            <HStack width="100%" justify="space-between">
+                              <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
+                              <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
+                                削除
+                              </Button>
+                            </HStack>
+                            <HStack width="100%" spacing={2}>
+                              <FormControl flex={1}>
+                                <FormLabel fontSize="sm">希望1</FormLabel>
+                                <Select
+                                  size="sm"
+                                  value={selectedPlayer.preferredRoles[0]}
+                                  onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
+                                >
+                                  {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                                    <option key={role} value={role}>
+                                      {role}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                              <FormControl flex={1}>
+                                <FormLabel fontSize="sm">希望2</FormLabel>
+                                <Select
+                                  size="sm"
+                                  value={selectedPlayer.preferredRoles[1]}
+                                  onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
+                                >
+                                  {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                                    <option key={role} value={role}>
+                                      {role}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </HStack>
+                          </VStack>
+                        </CardBody>
+                      </Card>
+                    ))}
+                  </VStack>
+                </Box>
+                <Box>
+                  <Text mb={2} color="red.600" fontWeight="bold">レッドサイド</Text>
+                  <VStack spacing={4} align="stretch">
+                    {selectedPlayers.slice(5, 10).map((selectedPlayer, index) => (
+                      <Card key={index} size="sm" bg="red.50">
+                        <CardBody>
+                          <VStack spacing={2}>
+                            <HStack width="100%" justify="space-between">
+                              <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
+                              <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index + 5)}>
+                                削除
+                              </Button>
+                            </HStack>
+                            <HStack width="100%" spacing={2}>
+                              <FormControl flex={1}>
+                                <FormLabel fontSize="sm">希望1</FormLabel>
+                                <Select
+                                  size="sm"
+                                  value={selectedPlayer.preferredRoles[0]}
+                                  onChange={(e) => handleRoleChange(index + 5, 0, e.target.value as Role)}
+                                >
+                                  {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                                    <option key={role} value={role}>
+                                      {role}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                              <FormControl flex={1}>
+                                <FormLabel fontSize="sm">希望2</FormLabel>
+                                <Select
+                                  size="sm"
+                                  value={selectedPlayer.preferredRoles[1]}
+                                  onChange={(e) => handleRoleChange(index + 5, 1, e.target.value as Role)}
+                                >
+                                  {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                                    <option key={role} value={role}>
+                                      {role}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </HStack>
+                          </VStack>
+                        </CardBody>
+                      </Card>
+                    ))}
+                  </VStack>
+                </Box>
               </SimpleGrid>
             </Box>
           )}
@@ -389,30 +451,46 @@ export default function TeamMaker() {
                 </CardHeader>
                 <CardBody>
                   {teams.blue.map(({ player, role }, blueIndex) => (
-                    <HStack key={blueIndex} justify="space-between">
-                      <Text>
-                        {player.name} ({role})
-                      </Text>
+                    <HStack key={blueIndex} justify="space-between" spacing={4}>
+                      <VStack align="start" spacing={1}>
+                        <Text fontWeight="bold">
+                          {player.name} ({role})
+                        </Text>
+                        <Text fontSize="sm" color="gray.600">
+                          レート: {role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8)}
+                          {role !== player.mainRole && ' (メインロール以外: -20%)'}
+                        </Text>
+                      </VStack>
                       <Menu>
                         <MenuButton as={Button} size="sm">
                           入れ替え
                         </MenuButton>
                         <MenuList>
                           <MenuGroup title="レッドチームと入れ替え">
-                            {teams.red.map(({ player: redPlayer }, redIndex) => (
-                              <MenuItem
-                                key={redIndex}
-                                onClick={() => handleSwapPlayers('blue', blueIndex, 'red', redIndex)}
-                              >
-                                {redPlayer.name}
-                              </MenuItem>
-                            ))}
+                            {teams.red.map(({ player: redPlayer, role: redRole }, redIndex) => {
+                              const currentBlueRate = role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8);
+                              const currentRedRate = redRole === redPlayer.mainRole ? redPlayer.rates[redRole] : Math.round(redPlayer.rates[redRole] * 0.8);
+                              const rateChange = currentRedRate - currentBlueRate;
+                              return (
+                                <MenuItem
+                                  key={redIndex}
+                                  onClick={() => handleSwapPlayers('blue', blueIndex, 'red', redIndex)}
+                                >
+                                  <HStack justify="space-between" width="100%">
+                                    <Text>{redPlayer.name}</Text>
+                                    <Text color={rateChange > 0 ? "green.500" : rateChange < 0 ? "red.500" : "gray.500"}>
+                                      {rateChange > 0 ? `+${rateChange}` : rateChange}
+                                    </Text>
+                                  </HStack>
+                                </MenuItem>
+                              );
+                            })}
                           </MenuGroup>
                         </MenuList>
                       </Menu>
                     </HStack>
                   ))}
-                  <Text mt={2}>チームレート: {calculateTeamRating(teams.blue)}</Text>
+                  <Text mt={4} fontWeight="bold">チームレート: {calculateTeamRating(teams.blue)}</Text>
                 </CardBody>
               </Card>
 
@@ -422,30 +500,46 @@ export default function TeamMaker() {
                 </CardHeader>
                 <CardBody>
                   {teams.red.map(({ player, role }, redIndex) => (
-                    <HStack key={redIndex} justify="space-between">
-                      <Text>
-                        {player.name} ({role})
-                      </Text>
+                    <HStack key={redIndex} justify="space-between" spacing={4}>
+                      <VStack align="start" spacing={1}>
+                        <Text fontWeight="bold">
+                          {player.name} ({role})
+                        </Text>
+                        <Text fontSize="sm" color="gray.600">
+                          レート: {role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8)}
+                          {role !== player.mainRole && ' (メインロール以外: -20%)'}
+                        </Text>
+                      </VStack>
                       <Menu>
                         <MenuButton as={Button} size="sm">
                           入れ替え
                         </MenuButton>
                         <MenuList>
                           <MenuGroup title="ブルーチームと入れ替え">
-                            {teams.blue.map(({ player: bluePlayer }, blueIndex) => (
-                              <MenuItem
-                                key={blueIndex}
-                                onClick={() => handleSwapPlayers('red', redIndex, 'blue', blueIndex)}
-                              >
-                                {bluePlayer.name}
-                              </MenuItem>
-                            ))}
+                            {teams.blue.map(({ player: bluePlayer, role: blueRole }, blueIndex) => {
+                              const currentRedRate = role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8);
+                              const currentBlueRate = blueRole === bluePlayer.mainRole ? bluePlayer.rates[blueRole] : Math.round(bluePlayer.rates[blueRole] * 0.8);
+                              const rateChange = currentBlueRate - currentRedRate;
+                              return (
+                                <MenuItem
+                                  key={blueIndex}
+                                  onClick={() => handleSwapPlayers('red', redIndex, 'blue', blueIndex)}
+                                >
+                                  <HStack justify="space-between" width="100%">
+                                    <Text>{bluePlayer.name}</Text>
+                                    <Text color={rateChange > 0 ? "green.500" : rateChange < 0 ? "red.500" : "gray.500"}>
+                                      {rateChange > 0 ? `+${rateChange}` : rateChange}
+                                    </Text>
+                                  </HStack>
+                                </MenuItem>
+                              );
+                            })}
                           </MenuGroup>
                         </MenuList>
                       </Menu>
                     </HStack>
                   ))}
-                  <Text mt={2}>チームレート: {calculateTeamRating(teams.red)}</Text>
+                  <Text mt={4} fontWeight="bold">チームレート: {calculateTeamRating(teams.red)}</Text>
                 </CardBody>
               </Card>
 
