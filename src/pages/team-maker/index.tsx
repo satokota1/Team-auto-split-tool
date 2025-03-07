@@ -372,9 +372,19 @@ export default function TeamMaker() {
               <Heading size="md" color="gray.700">
                 プレイヤー選択 ({selectedPlayers.length}/10)
               </Heading>
+              <InputGroup>
+                <InputLeftElement pointerEvents="none">
+                  <SearchIcon color="gray.300" />
+                </InputLeftElement>
+                <Input
+                  placeholder="プレイヤーを検索"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </InputGroup>
               <Box maxH="400px" overflowY="auto" px={2}>
                 <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
-                  {players
+                  {filteredPlayers
                     .filter((p) => !selectedPlayers.some((sp) => sp.player.id === p.id))
                     .map((player) => (
                       <Card
@@ -491,11 +501,12 @@ export default function TeamMaker() {
                 <Heading size="md" color="gray.700">
                   試合結果
                 </Heading>
-                <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                   <Button
                     colorScheme="blue"
                     onClick={() => handleMatchResult('BLUE')}
                     size="lg"
+                    width="100%"
                   >
                     チーム1の勝利
                   </Button>
@@ -503,20 +514,22 @@ export default function TeamMaker() {
                     colorScheme="red"
                     onClick={() => handleMatchResult('RED')}
                     size="lg"
+                    width="100%"
                   >
                     チーム2の勝利
                   </Button>
-                  <Button
-                    colorScheme="purple"
-                    as="a"
-                    href="https://draftlol.dawe.gg/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    size="lg"
-                  >
-                    ドラフトツール
-                  </Button>
                 </SimpleGrid>
+                <Button
+                  colorScheme="purple"
+                  as="a"
+                  href="https://draftlol.dawe.gg/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  size="lg"
+                  width="100%"
+                >
+                  ドラフトツール
+                </Button>
               </VStack>
             </Card>
           </>

@@ -142,6 +142,7 @@ export default function NewPlayer() {
                   onChange={(e) => setName(e.target.value)}
                   size="lg"
                   borderRadius="md"
+                  placeholder="FAKER#JP1"
                   _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px blue.400' }}
                 />
               </FormControl>
