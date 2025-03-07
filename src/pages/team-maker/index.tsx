@@ -111,8 +111,17 @@ export default function TeamMaker() {
       return
     }
 
-    // 各ロールのプレイヤーをグループ化
-    const roleGroups: { [key in GameRole]: SelectedPlayer[] } = {
+    // 各ロールのプレイヤーをグループ化（希望1のみ）
+    const primaryRoleGroups: { [key in GameRole]: SelectedPlayer[] } = {
+      TOP: [],
+      JUNGLE: [],
+      MID: [],
+      ADC: [],
+      SUP: [],
+    }
+
+    // 各ロールのプレイヤーをグループ化（希望2とFILL）
+    const secondaryRoleGroups: { [key in GameRole]: SelectedPlayer[] } = {
       TOP: [],
       JUNGLE: [],
       MID: [],
@@ -121,103 +130,115 @@ export default function TeamMaker() {
     }
 
     selectedPlayers.forEach((player) => {
-      // FILLの場合は全ロールに追加
-      player.preferredRoles.forEach((role) => {
-        if (role === 'FILL') {
-          Object.keys(roleGroups).forEach((gameRole) => {
-            roleGroups[gameRole as GameRole].push(player)
-          })
-        } else {
-          roleGroups[role as GameRole].push(player)
-        }
-      })
+      // 希望1のロールを追加
+      if (player.preferredRoles[0] !== 'FILL') {
+        primaryRoleGroups[player.preferredRoles[0] as GameRole].push(player)
+      }
+
+      // 希望2のロールとFILLを追加
+      if (player.preferredRoles[1] === 'FILL') {
+        Object.keys(secondaryRoleGroups).forEach((gameRole) => {
+          secondaryRoleGroups[gameRole as GameRole].push(player)
+        })
+      } else {
+        secondaryRoleGroups[player.preferredRoles[1] as GameRole].push(player)
+      }
+
+      // 希望1がFILLの場合は全ロールに追加
+      if (player.preferredRoles[0] === 'FILL') {
+        Object.keys(primaryRoleGroups).forEach((gameRole) => {
+          primaryRoleGroups[gameRole as GameRole].push(player)
+        })
+      }
     })
 
     const roles: GameRole[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
     let bestTeams: { blue: { player: Player; role: GameRole }[]; red: { player: Player; role: GameRole }[] } | null = null
     let minRateDifference = Infinity
+    let maxPrimaryRoleCount = -1 // 希望1のロールで配置できたプレイヤーの数を追跡
 
     // 複数回試行してベストな組み合わせを見つける
     for (let attempt = 0; attempt < 100; attempt++) {
       const blueTeam: { player: Player; role: GameRole }[] = []
       const redTeam: { player: Player; role: GameRole }[] = []
       const assignedPlayers = new Set<string>()
+      let primaryRoleCount = 0 // この試行で希望1のロールに配置できたプレイヤーの数
 
       // ランダムな順序でロールを処理
       const shuffledRoles = [...roles].sort(() => Math.random() - 0.5)
 
-      // ブルーチーム作成
-      shuffledRoles.forEach(role => {
-        if (blueTeam.length >= 5) return
+      // まず希望1のロールでチームを作成
+      const createTeamWithPrimaryRoles = (team: typeof blueTeam, roleGroups: typeof primaryRoleGroups) => {
+        shuffledRoles.forEach(role => {
+          if (team.length >= 5) return
 
-        const availablePlayers = roleGroups[role]
-          .filter(p => !assignedPlayers.has(p.player.id))
-          .sort(() => Math.random() - 0.5) // ランダムに選択
+          const availablePlayers = roleGroups[role]
+            .filter(p => !assignedPlayers.has(p.player.id))
+            .sort(() => Math.random() - 0.5)
 
-        if (availablePlayers.length > 0) {
-          const player = availablePlayers[0]
-          blueTeam.push({ player: player.player, role })
-          assignedPlayers.add(player.player.id)
-        }
-      })
-
-      // 残りのロールを埋める（ブルーチーム）
-      while (blueTeam.length < 5) {
-        const availablePlayer = selectedPlayers
-          .filter(p => !assignedPlayers.has(p.player.id))
-          .sort(() => Math.random() - 0.5)[0]
-        if (!availablePlayer) break
-
-        const availableRole = shuffledRoles.find(role => !blueTeam.some(p => p.role === role))
-        if (!availableRole) break
-
-        blueTeam.push({ player: availablePlayer.player, role: availableRole })
-        assignedPlayers.add(availablePlayer.player.id)
+          if (availablePlayers.length > 0) {
+            const player = availablePlayers[0]
+            team.push({ player: player.player, role })
+            assignedPlayers.add(player.player.id)
+            if (player.preferredRoles[0] === role || player.preferredRoles[0] === 'FILL') {
+              primaryRoleCount++
+            }
+          }
+        })
       }
 
-      // レッドチーム作成（残りのプレイヤーから）
-      shuffledRoles.forEach(role => {
-        if (redTeam.length >= 5) return
+      // 残りのロールを希望2とFILLで埋める
+      const fillRemainingRoles = (team: typeof blueTeam) => {
+        while (team.length < 5) {
+          const availablePlayer = selectedPlayers
+            .filter(p => !assignedPlayers.has(p.player.id))
+            .sort(() => Math.random() - 0.5)[0]
+          if (!availablePlayer) break
 
-        const availablePlayers = roleGroups[role]
-          .filter(p => !assignedPlayers.has(p.player.id))
-          .sort(() => Math.random() - 0.5)
+          const availableRole = shuffledRoles.find(role => !team.some(p => p.role === role))
+          if (!availableRole) break
 
-        if (availablePlayers.length > 0) {
-          const player = availablePlayers[0]
-          redTeam.push({ player: player.player, role })
-          assignedPlayers.add(player.player.id)
+          team.push({ player: availablePlayer.player, role: availableRole })
+          assignedPlayers.add(availablePlayer.player.id)
         }
-      })
-
-      // 残りのロールを埋める（レッドチーム）
-      while (redTeam.length < 5) {
-        const availablePlayer = selectedPlayers
-          .filter(p => !assignedPlayers.has(p.player.id))
-          .sort(() => Math.random() - 0.5)[0]
-        if (!availablePlayer) break
-
-        const availableRole = shuffledRoles.find(role => !redTeam.some(p => p.role === role))
-        if (!availableRole) break
-
-        redTeam.push({ player: availablePlayer.player, role: availableRole })
-        assignedPlayers.add(availablePlayer.player.id)
       }
 
-      // チームレートの差を計算
-      const blueRating = calculateTeamRating(blueTeam)
-      const redRating = calculateTeamRating(redTeam)
-      const rateDifference = Math.abs(blueRating - redRating)
+      // ブルーチームを作成
+      createTeamWithPrimaryRoles(blueTeam, primaryRoleGroups)
+      fillRemainingRoles(blueTeam)
 
-      // より良い組み合わせが見つかった場合は更新
-      if (rateDifference < minRateDifference && blueTeam.length === 5 && redTeam.length === 5) {
-        minRateDifference = rateDifference
-        bestTeams = { blue: blueTeam, red: redTeam }
+      // レッドチームを作成
+      createTeamWithPrimaryRoles(redTeam, primaryRoleGroups)
+      fillRemainingRoles(redTeam)
+
+      // チームが完成している場合のみ評価
+      if (blueTeam.length === 5 && redTeam.length === 5) {
+        const blueRating = calculateTeamRating(blueTeam)
+        const redRating = calculateTeamRating(redTeam)
+        const rateDifference = Math.abs(blueRating - redRating)
+
+        // より良い組み合わせの条件：
+        // 1. より多くのプレイヤーが希望1のロールに配置されている
+        // 2. 同じ希望1ロール数の場合、チームレートの差が小さい
+        if (primaryRoleCount > maxPrimaryRoleCount || 
+            (primaryRoleCount === maxPrimaryRoleCount && rateDifference < minRateDifference)) {
+          maxPrimaryRoleCount = primaryRoleCount
+          minRateDifference = rateDifference
+          bestTeams = { blue: blueTeam, red: redTeam }
+        }
       }
     }
 
     if (bestTeams) {
       setTeams(bestTeams)
+      // 希望1のロールに配置できた人数を表示
+      toast({
+        title: 'チーム作成完了',
+        description: `${maxPrimaryRoleCount}人が第一希望のロールで配置されました`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      })
     }
   }
 
@@ -315,7 +336,7 @@ export default function TeamMaker() {
           </FormControl>
 
           <Box>
-            <Heading size="md" mb={4}>『プレイヤー』一覧</Heading>
+            <Heading size="md" mb={4}>『プレイヤー』リスト</Heading>
             <Box maxH="300px" overflowY="auto">
               <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
                 {filteredPlayers
