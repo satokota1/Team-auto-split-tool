@@ -16,21 +16,21 @@ import {
   GridItem,
 } from '@chakra-ui/react'
 import { collection, addDoc } from 'firebase/firestore'
-import { db } from '../../lib/firebase'
-import { Player, Role, Rank, RANK_RATES, GameRole } from '../../types'
+import { db } from '@/lib/firebase'
+import { Player, Role, Rank, RANK_RATES, GameRole } from '@/types'
 import { useRouter } from 'next/router'
-import Layout from '../../components/Layout'
-import Card from '../../components/Card'
+import Layout from '@/components/Layout'
+import Card from '@/components/Card'
 
 export default function NewPlayer() {
   const [name, setName] = useState('')
-  const [mainRole, setMainRole] = useState<GameRole>('TOP')
+  const [mainRole, setMainRole] = useState<GameRole>(GameRole.TOP)
   const [roleRanks, setRoleRanks] = useState<{ [key in GameRole]: Rank }>({
-    TOP: 'UNRANKED',
-    JUNGLE: 'UNRANKED',
-    MID: 'UNRANKED',
-    ADC: 'UNRANKED',
-    SUP: 'UNRANKED',
+    [GameRole.TOP]: 'UNRANKED',
+    [GameRole.JUNGLE]: 'UNRANKED',
+    [GameRole.MID]: 'UNRANKED',
+    [GameRole.ADC]: 'UNRANKED',
+    [GameRole.SUP]: 'UNRANKED',
   })
   const toast = useToast()
   const router = useRouter()
@@ -48,9 +48,9 @@ export default function NewPlayer() {
       const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : currentMainRoleRank
 
       const newRoleRanks = { ...roleRanks }
-      Object.keys(newRoleRanks).forEach((role) => {
-        if (role !== newMainRole && newRoleRanks[role as GameRole] === 'UNRANKED') {
-          newRoleRanks[role as GameRole] = lowerRank
+      Object.values(GameRole).forEach((role) => {
+        if (role !== newMainRole && newRoleRanks[role] === 'UNRANKED') {
+          newRoleRanks[role] = lowerRank
         }
       })
       setRoleRanks(newRoleRanks)
@@ -67,9 +67,9 @@ export default function NewPlayer() {
       const rankIndex = ranks.indexOf(rank)
       const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : rank
 
-      Object.keys(newRoleRanks).forEach((r) => {
+      Object.values(GameRole).forEach((r) => {
         if (r !== role) {
-          newRoleRanks[r as GameRole] = lowerRank
+          newRoleRanks[r] = lowerRank
         }
       })
     }
@@ -173,7 +173,7 @@ export default function NewPlayer() {
                   size="lg"
                   borderRadius="md"
                 >
-                  {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                  {Object.values(GameRole).map((role) => (
                     <option key={role} value={role}>
                       {role}
                     </option>
@@ -188,7 +188,7 @@ export default function NewPlayer() {
                 templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }}
                 gap={4}
               >
-                {(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'] as GameRole[]).map((role) => (
+                {Object.values(GameRole).map((role) => (
                   <GridItem key={role}>
                     <Card
                       bg={role === mainRole ? 'blue.50' : 'white'}
