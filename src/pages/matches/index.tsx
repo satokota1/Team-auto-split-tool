@@ -13,12 +13,12 @@ import {
 } from '@chakra-ui/react'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { Match, Player } from '../../types'
+import { Match, Player, Role } from '../../types'
 
-interface MatchWithPlayers extends Match {
+interface MatchWithPlayers extends Omit<Match, 'players'> {
   players: {
     player: Player
-    role: string
+    role: Role
     team: 'BLUE' | 'RED'
   }[]
 }
@@ -36,7 +36,7 @@ export default function Matches() {
           ...acc,
           [doc.id]: { id: doc.id, ...doc.data() } as Player,
         }),
-        {}
+        {} as { [key: string]: Player }
       )
       setPlayers(playersData)
 
