@@ -14,19 +14,29 @@ import {
   VStack,
   Badge,
   useColorModeValue,
+  Input,
+  IconButton,
+  useToast,
 } from '@chakra-ui/react'
-import { AddIcon } from '@chakra-ui/icons'
-import { collection, getDocs } from 'firebase/firestore'
+import { AddIcon, EditIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { Player, GameRole } from '../../types'
 import Layout from '../../components/Layout'
 import Card from '../../components/Card'
 import Link from 'next/link'
 
+interface EditingState {
+  id: string | null;
+  newName: string;
+}
+
 export default function Players() {
   const [players, setPlayers] = useState<(Player & { id: string })[]>([])
+  const [editing, setEditing] = useState<EditingState>({ id: null, newName: '' })
   const tableBg = useColorModeValue('white', 'gray.800')
   const borderColor = useColorModeValue('gray.200', 'gray.700')
+  const toast = useToast()
 
   useEffect(() => {
     const fetchPlayers = async () => {
@@ -50,6 +60,58 @@ export default function Players() {
       SUP: 'orange'
     }
     return colors[role]
+  }
+
+  const handleEditClick = (player: Player & { id: string }) => {
+    setEditing({ id: player.id, newName: player.name })
+  }
+
+  const handleCancelEdit = () => {
+    setEditing({ id: null, newName: '' })
+  }
+
+  const handleSaveEdit = async (playerId: string) => {
+    if (!editing.newName.trim()) {
+      toast({
+        title: 'エラー',
+        description: '名前を入力してください',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
+    try {
+      const playerRef = doc(db, 'players', playerId)
+      await updateDoc(playerRef, {
+        name: editing.newName.trim()
+      })
+
+      setPlayers(players.map(player => 
+        player.id === playerId 
+          ? { ...player, name: editing.newName.trim() }
+          : player
+      ))
+
+      setEditing({ id: null, newName: '' })
+
+      toast({
+        title: '更新完了',
+        description: 'プレイヤー名を更新しました',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error) {
+      toast({
+        title: 'エラー',
+        description: '更新に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
   }
 
   return (
@@ -85,6 +147,7 @@ export default function Players() {
                   <Th borderColor={borderColor}>メインロール</Th>
                   <Th borderColor={borderColor} isNumeric>勝率</Th>
                   <Th borderColor={borderColor} isNumeric>レート</Th>
+                  <Th borderColor={borderColor} width="100px"></Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -93,13 +156,26 @@ export default function Players() {
                     ? Math.round((player.stats.wins / (player.stats.wins + player.stats.losses)) * 100)
                     : 0
 
+                  const isEditing = editing.id === player.id
+
                   return (
                     <Tr 
                       key={player.id}
                       _hover={{ bg: 'gray.50' }}
                       transition="background-color 0.2s"
                     >
-                      <Td borderColor={borderColor}>{player.name}</Td>
+                      <Td borderColor={borderColor}>
+                        {isEditing ? (
+                          <Input
+                            value={editing.newName}
+                            onChange={(e) => setEditing({ ...editing, newName: e.target.value })}
+                            size="sm"
+                            width="200px"
+                          />
+                        ) : (
+                          player.name
+                        )}
+                      </Td>
                       <Td borderColor={borderColor}>
                         <Badge 
                           colorScheme={getRoleColor(player.mainRole)}
@@ -126,6 +202,36 @@ export default function Players() {
                         <Text fontWeight="bold">
                           {player.rates[player.mainRole]}
                         </Text>
+                      </Td>
+                      <Td borderColor={borderColor}>
+                        <HStack spacing={2} justify="flex-end">
+                          {isEditing ? (
+                            <>
+                              <IconButton
+                                aria-label="Save"
+                                icon={<CheckIcon />}
+                                size="sm"
+                                colorScheme="green"
+                                onClick={() => handleSaveEdit(player.id)}
+                              />
+                              <IconButton
+                                aria-label="Cancel"
+                                icon={<CloseIcon />}
+                                size="sm"
+                                colorScheme="red"
+                                onClick={handleCancelEdit}
+                              />
+                            </>
+                          ) : (
+                            <IconButton
+                              aria-label="Edit name"
+                              icon={<EditIcon />}
+                              size="sm"
+                              colorScheme="blue"
+                              onClick={() => handleEditClick(player)}
+                            />
+                          )}
+                        </HStack>
                       </Td>
                     </Tr>
                   )
