@@ -1,0 +1,298 @@
+import { useEffect, useState } from 'react'
+import {
+  Box,
+  Button,
+  Container,
+  FormControl,
+  FormLabel,
+  Heading,
+  Select,
+  Stack,
+  VStack,
+  Text,
+  HStack,
+  useToast,
+} from '@chakra-ui/react'
+import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
+import { db } from '../../lib/firebase'
+import { Player, Role, Match } from '../../types'
+
+interface SelectedPlayer {
+  player: Player
+  preferredRoles: [Role, Role]
+}
+
+export default function TeamMaker() {
+  const [players, setPlayers] = useState<Player[]>([])
+  const [selectedPlayers, setSelectedPlayers] = useState<SelectedPlayer[]>([])
+  const [teams, setTeams] = useState<{
+    blue: { player: Player; role: Role }[]
+    red: { player: Player; role: Role }[]
+  } | null>(null)
+  const toast = useToast()
+
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      const querySnapshot = await getDocs(collection(db, 'players'))
+      const playersData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Player[]
+      setPlayers(playersData)
+    }
+
+    fetchPlayers()
+  }, [])
+
+  const handleAddPlayer = (playerId: string) => {
+    const player = players.find((p) => p.id === playerId)
+    if (!player) return
+
+    if (selectedPlayers.length >= 10) {
+      toast({
+        title: 'エラー',
+        description: '最大10人まで選択できます',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
+    setSelectedPlayers([
+      ...selectedPlayers,
+      {
+        player,
+        preferredRoles: ['TOP', 'TOP'],
+      },
+    ])
+  }
+
+  const handleRemovePlayer = (index: number) => {
+    setSelectedPlayers(selectedPlayers.filter((_, i) => i !== index))
+  }
+
+  const handleRoleChange = (index: number, roleIndex: 0 | 1, role: Role) => {
+    const newSelectedPlayers = [...selectedPlayers]
+    newSelectedPlayers[index].preferredRoles[roleIndex] = role
+    setSelectedPlayers(newSelectedPlayers)
+  }
+
+  const calculateTeamRating = (team: { player: Player; role: Role }[]) => {
+    return team.reduce((sum, { player, role }) => {
+      return sum + (role === player.mainRole ? player.rates[role] : player.rates[role] * 0.8)
+    }, 0)
+  }
+
+  const createTeams = () => {
+    if (selectedPlayers.length !== 10) {
+      toast({
+        title: 'エラー',
+        description: '10人を選択してください',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
+    // 各ロールのプレイヤーをグループ化
+    const roleGroups: { [key in Role]: SelectedPlayer[] } = {
+      TOP: [],
+      JUNGLE: [],
+      MID: [],
+      ADC: [],
+      SUP: [],
+    }
+
+    selectedPlayers.forEach((player) => {
+      player.preferredRoles.forEach((role) => {
+        roleGroups[role].push(player)
+      })
+    })
+
+    // 各ロールから1人ずつ選択
+    const blueTeam: { player: Player; role: Role }[] = []
+    const redTeam: { player: Player; role: Role }[] = []
+
+    Object.entries(roleGroups).forEach(([role, players]) => {
+      if (players.length > 0) {
+        // レートの高い順にソート
+        players.sort((a, b) => {
+          const rateA = role === a.player.mainRole ? a.player.rates[role as Role] : a.player.rates[role as Role] * 0.8
+          const rateB = role === b.player.mainRole ? b.player.rates[role as Role] : b.player.rates[role as Role] * 0.8
+          return rateB - rateA
+        })
+
+        // 交互にチームに割り当て
+        if (blueTeam.length < 5) {
+          blueTeam.push({ player: players[0].player, role: role as Role })
+        } else {
+          redTeam.push({ player: players[0].player, role: role as Role })
+        }
+      }
+    })
+
+    setTeams({ blue: blueTeam, red: redTeam })
+  }
+
+  const handleMatchResult = async (winner: 'BLUE' | 'RED') => {
+    if (!teams) return
+
+    const match: Omit<Match, 'id'> = {
+      date: new Date(),
+      players: [
+        ...teams.blue.map((p) => ({ playerId: p.player.id, role: p.role, team: 'BLUE' as const })),
+        ...teams.red.map((p) => ({ playerId: p.player.id, role: p.role, team: 'RED' as const })),
+      ],
+      winner,
+    }
+
+    try {
+      const matchRef = await addDoc(collection(db, 'matches'), match)
+
+      // プレイヤーのレートを更新
+      const updatePromises = match.players.map(async ({ playerId, role, team }) => {
+        const playerRef = doc(db, 'players', playerId)
+        const player = players.find((p) => p.id === playerId)
+        if (!player) return
+
+        const isWinner = team === winner
+        const rateChange = isWinner ? 20 : -20
+        const isMainRole = role === player.mainRole
+
+        await updateDoc(playerRef, {
+          [`rates.${role}`]: player.rates[role] + rateChange,
+          [`stats.${isWinner ? 'wins' : 'losses'}`]: player.stats[isWinner ? 'wins' : 'losses'] + 1,
+        })
+      })
+
+      await Promise.all(updatePromises)
+
+      toast({
+        title: '成功',
+        description: '試合結果を保存しました',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+
+      // 状態をリセット
+      setSelectedPlayers([])
+      setTeams(null)
+    } catch (error) {
+      console.error('Error saving match:', error)
+      toast({
+        title: 'エラー',
+        description: '試合結果の保存に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
+
+  return (
+    <Container maxW="container.lg" py={10}>
+      <VStack spacing={8}>
+        <Heading>チーム自動振り分け</Heading>
+
+        <Stack spacing={4} width="100%">
+          <FormControl>
+            <FormLabel>プレイヤーを選択</FormLabel>
+            <Select onChange={(e) => handleAddPlayer(e.target.value)}>
+              <option value="">プレイヤーを選択</option>
+              {players
+                .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
+                .map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+            </Select>
+          </FormControl>
+
+          {selectedPlayers.map((selectedPlayer, index) => (
+            <Box key={index} p={4} borderWidth={1} borderRadius="md">
+              <HStack justify="space-between">
+                <Text>{selectedPlayer.player.name}</Text>
+                <Button size="sm" colorScheme="red" onClick={() => handleRemovePlayer(index)}>
+                  削除
+                </Button>
+              </HStack>
+              <Stack direction="row" mt={2}>
+                <FormControl>
+                  <FormLabel>希望ロール1</FormLabel>
+                  <Select
+                    value={selectedPlayer.preferredRoles[0]}
+                    onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
+                  >
+                    {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>希望ロール2</FormLabel>
+                  <Select
+                    value={selectedPlayer.preferredRoles[1]}
+                    onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
+                  >
+                    {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Box>
+          ))}
+
+          <Button colorScheme="blue" onClick={createTeams}>
+            チームを作成
+          </Button>
+
+          {teams && (
+            <Stack spacing={4}>
+              <Box p={4} borderWidth={1} borderRadius="md" bg="blue.50">
+                <Heading size="md" mb={4}>
+                  ブルーチーム
+                </Heading>
+                {teams.blue.map(({ player, role }, index) => (
+                  <Text key={index}>
+                    {player.name} ({role})
+                  </Text>
+                ))}
+                <Text mt={2}>チームレート: {calculateTeamRating(teams.blue)}</Text>
+              </Box>
+
+              <Box p={4} borderWidth={1} borderRadius="md" bg="red.50">
+                <Heading size="md" mb={4}>
+                  レッドチーム
+                </Heading>
+                {teams.red.map(({ player, role }, index) => (
+                  <Text key={index}>
+                    {player.name} ({role})
+                  </Text>
+                ))}
+                <Text mt={2}>チームレート: {calculateTeamRating(teams.red)}</Text>
+              </Box>
+
+              <HStack spacing={4}>
+                <Button colorScheme="blue" onClick={() => handleMatchResult('BLUE')}>
+                  ブルーチームの勝利
+                </Button>
+                <Button colorScheme="red" onClick={() => handleMatchResult('RED')}>
+                  レッドチームの勝利
+                </Button>
+              </HStack>
+            </Stack>
+          )}
+        </Stack>
+      </VStack>
+    </Container>
+  )
+} 
