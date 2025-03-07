@@ -1,4 +1,5 @@
-export type Role = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUP';
+export type Role = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUP' | 'FILL';
+export type GameRole = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUP';  // 実際のゲーム内ロール
 export type Rank = 'UNRANK' | 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLAT' | 'EME' | 'DIA' | 'MASTER' | 'GM' | 'CHALLENGER';
 
 export interface Player {

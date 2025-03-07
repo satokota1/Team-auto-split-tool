@@ -23,7 +23,7 @@ import {
 import { SearchIcon } from '@chakra-ui/icons'
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { Player, Role, Match } from '../../types'
+import { Player, Role, GameRole, Match } from '../../types'
 
 interface SelectedPlayer {
   player: Player
@@ -34,8 +34,8 @@ export default function TeamMaker() {
   const [players, setPlayers] = useState<Player[]>([])
   const [selectedPlayers, setSelectedPlayers] = useState<SelectedPlayer[]>([])
   const [teams, setTeams] = useState<{
-    blue: { player: Player; role: Role }[]
-    red: { player: Player; role: Role }[]
+    blue: { player: Player; role: GameRole }[]
+    red: { player: Player; role: GameRole }[]
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const toast = useToast()
@@ -73,7 +73,7 @@ export default function TeamMaker() {
       ...selectedPlayers,
       {
         player,
-        preferredRoles: [player.mainRole, 'TOP'],
+        preferredRoles: [player.mainRole, 'FILL'],
       },
     ])
   }
@@ -88,7 +88,7 @@ export default function TeamMaker() {
     setSelectedPlayers(newSelectedPlayers)
   }
 
-  const calculateTeamRating = (team: { player: Player; role: Role }[]) => {
+  const calculateTeamRating = (team: { player: Player; role: GameRole }[]) => {
     return team.reduce((sum, { player, role }) => {
       return sum + (role === player.mainRole ? player.rates[role] : player.rates[role] * 0.8)
     }, 0)
@@ -107,7 +107,7 @@ export default function TeamMaker() {
     }
 
     // 各ロールのプレイヤーをグループ化
-    const roleGroups: { [key in Role]: SelectedPlayer[] } = {
+    const roleGroups: { [key in GameRole]: SelectedPlayer[] } = {
       TOP: [],
       JUNGLE: [],
       MID: [],
@@ -116,16 +116,23 @@ export default function TeamMaker() {
     }
 
     selectedPlayers.forEach((player) => {
+      // FILLの場合は全ロールに追加
       player.preferredRoles.forEach((role) => {
-        roleGroups[role].push(player)
+        if (role === 'FILL') {
+          Object.keys(roleGroups).forEach((gameRole) => {
+            roleGroups[gameRole as GameRole].push(player)
+          })
+        } else {
+          roleGroups[role as GameRole].push(player)
+        }
       })
     })
 
     // 各ロールから1人ずつ選択してチームを作成
-    const blueTeam: { player: Player; role: Role }[] = []
-    const redTeam: { player: Player; role: Role }[] = []
+    const blueTeam: { player: Player; role: GameRole }[] = []
+    const redTeam: { player: Player; role: GameRole }[] = []
     const assignedPlayers = new Set<string>()
-    const roles: Role[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
+    const roles: GameRole[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
 
     // 各ロールについて処理（ブルーチーム）
     roles.forEach(role => {
@@ -311,7 +318,7 @@ export default function TeamMaker() {
                             value={selectedPlayer.preferredRoles[0]}
                             onChange={(e) => handleRoleChange(index, 0, e.target.value as Role)}
                           >
-                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
                               <option key={role} value={role}>
                                 {role}
                               </option>
@@ -324,7 +331,7 @@ export default function TeamMaker() {
                             value={selectedPlayer.preferredRoles[1]}
                             onChange={(e) => handleRoleChange(index, 1, e.target.value as Role)}
                           >
-                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP'].map((role) => (
+                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
                               <option key={role} value={role}>
                                 {role}
                               </option>
