@@ -1,4 +1,11 @@
-export type GameRole = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUP'
+export enum GameRole {
+  TOP = 'TOP',
+  JUNGLE = 'JUNGLE',
+  MID = 'MID',
+  ADC = 'ADC',
+  SUP = 'SUP'
+}
+
 export type Role = GameRole | 'FILL'
 
 export type Rank = 'UNRANKED' | 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'EMERALD' | 'DIAMOND' | 'MASTER' | 'GRANDMASTER' | 'CHALLENGER'
