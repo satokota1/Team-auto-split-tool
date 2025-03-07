@@ -73,7 +73,7 @@ export default function TeamMaker() {
       ...selectedPlayers,
       {
         player,
-        preferredRoles: ['TOP', 'TOP'],
+        preferredRoles: [player.mainRole, 'TOP'],
       },
     ])
   }
@@ -125,55 +125,70 @@ export default function TeamMaker() {
     const blueTeam: { player: Player; role: Role }[] = []
     const redTeam: { player: Player; role: Role }[] = []
     const assignedPlayers = new Set<string>()
+    const roles: Role[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
 
-    // 各ロールについて処理
-    Object.entries(roleGroups).forEach(([role, players]) => {
-      // まだ割り当てられていないプレイヤーをフィルタリング
-      const availablePlayers = players.filter(p => !assignedPlayers.has(p.player.id))
-      if (availablePlayers.length === 0) return
+    // 各ロールについて処理（ブルーチーム）
+    roles.forEach(role => {
+      if (blueTeam.length >= 5) return
 
-      // レートの高い順にソート
-      availablePlayers.sort((a, b) => {
-        const rateA = role === a.player.mainRole ? a.player.rates[role as Role] : a.player.rates[role as Role] * 0.8
-        const rateB = role === b.player.mainRole ? b.player.rates[role as Role] : b.player.rates[role as Role] * 0.8
-        return rateB - rateA
-      })
+      // そのロールを希望するプレイヤーを取得
+      const availablePlayers = roleGroups[role]
+        .filter(p => !assignedPlayers.has(p.player.id))
+        .sort((a, b) => {
+          const rateA = role === a.player.mainRole ? a.player.rates[role] : a.player.rates[role] * 0.8
+          const rateB = role === b.player.mainRole ? b.player.rates[role] : b.player.rates[role] * 0.8
+          return rateB - rateA
+        })
 
-      // チームに割り当て
-      const player = availablePlayers[0]
-      if (blueTeam.length < 5 && !assignedPlayers.has(player.player.id)) {
-        blueTeam.push({ player: player.player, role: role as Role })
+      if (availablePlayers.length > 0) {
+        const player = availablePlayers[0]
+        blueTeam.push({ player: player.player, role })
         assignedPlayers.add(player.player.id)
       }
     })
 
-    // 残りのプレイヤーをレッドチームに割り当て
-    selectedPlayers.forEach((player) => {
-      if (!assignedPlayers.has(player.player.id)) {
-        // 希望ロールの中から、まだ埋まっていないロールを探す
-        const availableRole = player.preferredRoles.find(role => 
-          !redTeam.some(p => p.role === role)
-        )
-        if (availableRole) {
-          redTeam.push({ player: player.player, role: availableRole })
-          assignedPlayers.add(player.player.id)
-        }
+    // 残りのロールを埋める（ブルーチーム）
+    while (blueTeam.length < 5) {
+      const availablePlayer = selectedPlayers.find(p => !assignedPlayers.has(p.player.id))
+      if (!availablePlayer) break
+
+      const availableRole = roles.find(role => !blueTeam.some(p => p.role === role))
+      if (!availableRole) break
+
+      blueTeam.push({ player: availablePlayer.player, role: availableRole })
+      assignedPlayers.add(availablePlayer.player.id)
+    }
+
+    // レッドチームの作成（同様のロジック）
+    roles.forEach(role => {
+      if (redTeam.length >= 5) return
+
+      const availablePlayers = roleGroups[role]
+        .filter(p => !assignedPlayers.has(p.player.id))
+        .sort((a, b) => {
+          const rateA = role === a.player.mainRole ? a.player.rates[role] : a.player.rates[role] * 0.8
+          const rateB = role === b.player.mainRole ? b.player.rates[role] : b.player.rates[role] * 0.8
+          return rateB - rateA
+        })
+
+      if (availablePlayers.length > 0) {
+        const player = availablePlayers[0]
+        redTeam.push({ player: player.player, role })
+        assignedPlayers.add(player.player.id)
       }
     })
 
-    // まだ割り当てられていないロールがある場合、残りのプレイヤーを割り当て
-    const roles: Role[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP']
-    roles.forEach(role => {
-      if (!redTeam.some(p => p.role === role)) {
-        const availablePlayer = selectedPlayers.find(p => 
-          !assignedPlayers.has(p.player.id)
-        )
-        if (availablePlayer) {
-          redTeam.push({ player: availablePlayer.player, role })
-          assignedPlayers.add(availablePlayer.player.id)
-        }
-      }
-    })
+    // 残りのロールを埋める（レッドチーム）
+    while (redTeam.length < 5) {
+      const availablePlayer = selectedPlayers.find(p => !assignedPlayers.has(p.player.id))
+      if (!availablePlayer) break
+
+      const availableRole = roles.find(role => !redTeam.some(p => p.role === role))
+      if (!availableRole) break
+
+      redTeam.push({ player: availablePlayer.player, role: availableRole })
+      assignedPlayers.add(availablePlayer.player.id)
+    }
 
     setTeams({ blue: blueTeam, red: redTeam })
   }
@@ -257,20 +272,22 @@ export default function TeamMaker() {
             </InputGroup>
           </FormControl>
 
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-            {filteredPlayers
-              .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
-              .map((player) => (
-                <Card key={player.id} cursor="pointer" onClick={() => handleAddPlayer(player)}>
-                  <CardBody>
-                    <Text fontWeight="bold">{player.name}</Text>
-                    <Text fontSize="sm" color="gray.600">
-                      メインロール: {player.mainRole}
-                    </Text>
-                  </CardBody>
-                </Card>
-              ))}
-          </SimpleGrid>
+          <Box maxH="300px" overflowY="auto">
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
+              {filteredPlayers
+                .filter((player) => !selectedPlayers.some((sp) => sp.player.id === player.id))
+                .map((player) => (
+                  <Card key={player.id} cursor="pointer" onClick={() => handleAddPlayer(player)}>
+                    <CardBody>
+                      <Text fontWeight="bold">{player.name}</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        メインロール: {player.mainRole}
+                      </Text>
+                    </CardBody>
+                  </Card>
+                ))}
+            </SimpleGrid>
+          </Box>
 
           {selectedPlayers.length > 0 && (
             <Box>

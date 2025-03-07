@@ -13,12 +13,12 @@ import {
 } from '@chakra-ui/react'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { Match, Player, Role } from '../../types'
+import { Match, Player } from '../../types'
 
 interface MatchWithPlayers extends Omit<Match, 'players'> {
   players: {
     player: Player
-    role: Role
+    role: string
     team: 'BLUE' | 'RED'
   }[]
 }
@@ -29,36 +29,36 @@ export default function Matches() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // プレイヤー情報の取得
-      const playersSnapshot = await getDocs(collection(db, 'players'))
-      const playersData = playersSnapshot.docs.reduce(
-        (acc, doc) => ({
-          ...acc,
-          [doc.id]: { id: doc.id, ...doc.data() } as Player,
-        }),
-        {} as { [key: string]: Player }
-      )
-      setPlayers(playersData)
+      try {
+        // プレイヤー情報の取得
+        const playersSnapshot = await getDocs(collection(db, 'players'))
+        const playersData = playersSnapshot.docs.reduce(
+          (acc, doc) => ({
+            ...acc,
+            [doc.id]: { id: doc.id, ...doc.data() } as Player,
+          }),
+          {} as { [key: string]: Player }
+        )
+        setPlayers(playersData)
 
-      // 試合情報の取得
-      const matchesSnapshot = await getDocs(
-        query(collection(db, 'matches'), orderBy('date', 'desc'))
-      )
-      const matchesData = await Promise.all(
-        matchesSnapshot.docs.map(async (doc) => {
+        // 試合情報の取得
+        const matchesSnapshot = await getDocs(
+          query(collection(db, 'matches'), orderBy('date', 'desc'))
+        )
+        const matchesData = matchesSnapshot.docs.map((doc) => {
           const match = { id: doc.id, ...doc.data() } as Match
           return {
             ...match,
-            players: await Promise.all(
-              match.players.map(async (p) => ({
-                ...p,
-                player: playersData[p.playerId],
-              }))
-            ),
+            players: match.players.map((p) => ({
+              ...p,
+              player: playersData[p.playerId],
+            })),
           }
         })
-      )
-      setMatches(matchesData)
+        setMatches(matchesData)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      }
     }
 
     fetchData()
@@ -88,13 +88,13 @@ export default function Matches() {
                   <Td>
                     {match.players
                       .filter((p) => p.team === 'BLUE')
-                      .map((p) => `${p.player.name} (${p.role})`)
+                      .map((p) => `${p.player?.name || '不明'} (${p.role})`)
                       .join(', ')}
                   </Td>
                   <Td>
                     {match.players
                       .filter((p) => p.team === 'RED')
-                      .map((p) => `${p.player.name} (${p.role})`)
+                      .map((p) => `${p.player?.name || '不明'} (${p.role})`)
                       .join(', ')}
                   </Td>
                   <Td>{match.winner}</Td>
