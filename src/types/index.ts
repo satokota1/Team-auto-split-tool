@@ -50,8 +50,14 @@ export interface Teams {
 
 export interface Match {
   id: string
-  date: string
-  blueTeam: TeamPlayer[]
-  redTeam: TeamPlayer[]
+  date: {
+    seconds: number
+    nanoseconds: number
+  }
+  players: {
+    playerId: string
+    role: Role
+    team: 'BLUE' | 'RED'
+  }[]
   winner: 'BLUE' | 'RED'
 } 
