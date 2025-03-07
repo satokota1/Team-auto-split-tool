@@ -375,7 +375,7 @@ export default function TeamMaker() {
               <Box maxH="400px" overflowY="auto" px={2}>
                 <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
                   {players
-                    .filter((p) => !selectedPlayers.some((sp) => sp.id === p.id))
+                    .filter((p) => !selectedPlayers.some((sp) => sp.player.id === p.id))
                     .map((player) => (
                       <Card
                         key={player.id}
