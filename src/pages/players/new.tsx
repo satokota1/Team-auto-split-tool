@@ -91,6 +91,22 @@ export default function NewPlayer() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!name.trim() || !mainRole) {
+      toast({
+        title: 'エラー',
+        description: '名前とメインロールを入力してください',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
+    // 確認ダイアログを表示
+    if (!window.confirm(`以下の内容で登録しますか？\n\n名前: ${name}\nメインロール: ${mainRole}`)) {
+      return
+    }
+
     try {
       const player: Omit<Player, 'id'> = {
         name,
@@ -217,6 +233,7 @@ export default function NewPlayer() {
               size="lg"
               w="full"
               boxShadow="md"
+              isDisabled={!name.trim() || !mainRole}
               _hover={{ 
                 transform: 'translateY(-2px)',
                 boxShadow: 'lg'
