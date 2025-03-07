@@ -15,7 +15,7 @@ import {
 import { collection, addDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { Player, Role, Rank, RANK_RATES } from '../../types'
-import { useNavigate } from 'react-router-dom'
+import { useRouter } from 'next/router'
 
 export default function NewPlayer() {
   const [name, setName] = useState('')
@@ -29,7 +29,7 @@ export default function NewPlayer() {
     SUP: 0,
   })
   const toast = useToast()
-  const navigate = useNavigate()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,7 +55,7 @@ export default function NewPlayer() {
         isClosable: true,
       })
 
-      navigate('/')
+      router.push('/')
     } catch (error) {
       console.error('Error adding player:', error)
       toast({

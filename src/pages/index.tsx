@@ -9,8 +9,9 @@ import {
   CardBody,
   CardHeader,
   Button,
+  Link,
 } from '@chakra-ui/react'
-import { Link as RouterLink } from 'react-router-dom'
+import NextLink from 'next/link'
 
 export default function Home() {
   return (
@@ -28,9 +29,11 @@ export default function Home() {
             </CardHeader>
             <CardBody>
               <Text mb={4}>登録済みのプレイヤー一覧を表示します</Text>
-              <Button as={RouterLink} to="/players" colorScheme="blue" width="100%">
-                プレイヤー一覧へ
-              </Button>
+              <NextLink href="/players" passHref>
+                <Button as={Link} colorScheme="blue" width="100%">
+                  プレイヤー一覧へ
+                </Button>
+              </NextLink>
             </CardBody>
           </Card>
 
@@ -40,9 +43,11 @@ export default function Home() {
             </CardHeader>
             <CardBody>
               <Text mb={4}>新しいプレイヤーを登録します</Text>
-              <Button as={RouterLink} to="/players/new" colorScheme="green" width="100%">
-                プレイヤー登録へ
-              </Button>
+              <NextLink href="/players/new" passHref>
+                <Button as={Link} colorScheme="green" width="100%">
+                  プレイヤー登録へ
+                </Button>
+              </NextLink>
             </CardBody>
           </Card>
 
@@ -52,9 +57,11 @@ export default function Home() {
             </CardHeader>
             <CardBody>
               <Text mb={4}>プレイヤーを選択してチームを自動振り分けします</Text>
-              <Button as={RouterLink} to="/team-maker" colorScheme="purple" width="100%">
-                チーム作成へ
-              </Button>
+              <NextLink href="/team-maker" passHref>
+                <Button as={Link} colorScheme="purple" width="100%">
+                  チーム作成へ
+                </Button>
+              </NextLink>
             </CardBody>
           </Card>
 
@@ -64,9 +71,11 @@ export default function Home() {
             </CardHeader>
             <CardBody>
               <Text mb={4}>過去の試合結果を確認できます</Text>
-              <Button as={RouterLink} to="/matches" colorScheme="orange" width="100%">
-                試合履歴へ
-              </Button>
+              <NextLink href="/matches" passHref>
+                <Button as={Link} colorScheme="orange" width="100%">
+                  試合履歴へ
+                </Button>
+              </NextLink>
             </CardBody>
           </Card>
         </SimpleGrid>
