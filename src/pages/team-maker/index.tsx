@@ -231,10 +231,9 @@ export default function TeamMaker() {
 
         const isWinner = team === winner
         const rateChange = isWinner ? 20 : -20
-        const isMainRole = role === player.mainRole
 
         await updateDoc(playerRef, {
-          [`rates.${role}`]: player.rates[role] + rateChange,
+          [`rates.${role}`]: player.rates[role as GameRole] + rateChange,
           [`stats.${isWinner ? 'wins' : 'losses'}`]: player.stats[isWinner ? 'wins' : 'losses'] + 1,
         })
       })
