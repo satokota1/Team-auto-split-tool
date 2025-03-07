@@ -427,25 +427,66 @@ export default function TeamMaker() {
                     key={player.player.id}
                     bg={useColorModeValue('white', 'gray.700')}
                     borderWidth="1px"
+                    position="relative"
                   >
-                    <HStack justify="space-between">
-                      <VStack align="start" spacing={1}>
-                        <Text fontWeight="bold">{player.player.name}</Text>
-                        <Badge
-                          colorScheme={getRoleColor(player.player.mainRole)}
-                        >
-                          {player.player.mainRole}
-                        </Badge>
-                      </VStack>
-                      <IconButton
-                        icon={<DeleteIcon />}
-                        aria-label="Remove player"
-                        size="sm"
-                        colorScheme="red"
-                        variant="ghost"
-                        onClick={() => handleRemovePlayer(index)}
-                      />
-                    </HStack>
+                    <IconButton
+                      icon={<DeleteIcon />}
+                      aria-label="Remove player"
+                      size="sm"
+                      colorScheme="red"
+                      variant="ghost"
+                      position="absolute"
+                      top={1}
+                      right={1}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemovePlayer(index)
+                      }}
+                      _hover={{
+                        bg: 'red.100',
+                      }}
+                    />
+                    <VStack align="stretch" spacing={1} p={2}>
+                      <Text fontWeight="bold" noOfLines={1} pr={8}>{player.player.name}</Text>
+                      <Badge
+                        colorScheme={getRoleColor(player.player.mainRole)}
+                        alignSelf="flex-start"
+                      >
+                        {player.player.mainRole}
+                      </Badge>
+                      <HStack spacing={2}>
+                        <FormControl size="sm">
+                          <Select
+                            size="sm"
+                            value={player.preferredRoles[0]}
+                            onChange={(e) =>
+                              handleRoleChange(index, 0, e.target.value as Role)
+                            }
+                          >
+                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <FormControl size="sm">
+                          <Select
+                            size="sm"
+                            value={player.preferredRoles[1]}
+                            onChange={(e) =>
+                              handleRoleChange(index, 1, e.target.value as Role)
+                            }
+                          >
+                            {['TOP', 'JUNGLE', 'MID', 'ADC', 'SUP', 'FILL'].map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </HStack>
+                    </VStack>
                   </Card>
                 ))}
               </SimpleGrid>
@@ -466,11 +507,34 @@ export default function TeamMaker() {
                       {name}
                     </Heading>
                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
-                      {team.map((player) => (
+                      {team.map((player, teamIndex) => (
                         <Card
                           key={player.player.id}
                           bg={useColorModeValue('gray.50', 'gray.700')}
                           borderWidth="1px"
+                          cursor="pointer"
+                          onClick={() => {
+                            const otherTeam = name === 'チーム1' ? 'チーム2' : 'チーム1'
+                            const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
+                            const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                            const menu = document.createElement('select')
+                            menu.onchange = (e) => {
+                              const targetIndex = Number((e.target as HTMLSelectElement).value)
+                              handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, targetIndex)
+                            }
+                            const otherTeamPlayers = name === 'チーム1' ? teams.red : teams.blue
+                            otherTeamPlayers.forEach((p, i) => {
+                              const option = document.createElement('option')
+                              option.value = String(i)
+                              option.text = `${p.player.name} (${p.role})`
+                              menu.appendChild(option)
+                            })
+                            menu.click()
+                          }}
+                          _hover={{
+                            transform: 'translateY(-2px)',
+                            boxShadow: 'md',
+                          }}
                         >
                           <VStack align="stretch" spacing={1}>
                             <Text fontWeight="bold">{player.player.name}</Text>
@@ -498,9 +562,19 @@ export default function TeamMaker() {
 
             <Card>
               <VStack spacing={4} align="stretch">
-                <Heading size="md" color="gray.700">
-                  試合結果
-                </Heading>
+                <HStack justify="space-between" align="center">
+                  <Heading size="md" color="gray.700">
+                    試合結果
+                  </Heading>
+                  <Button
+                    leftIcon={<RepeatIcon />}
+                    colorScheme="green"
+                    onClick={createTeams}
+                    size="sm"
+                  >
+                    チーム再生成
+                  </Button>
+                </HStack>
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                   <Button
                     colorScheme="blue"
