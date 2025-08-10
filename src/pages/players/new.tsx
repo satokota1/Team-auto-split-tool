@@ -14,6 +14,12 @@ import {
   Text,
   Grid,
   GridItem,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  HStack,
+  InputGroup,
+  InputRightElement,
 } from '@chakra-ui/react'
 import { collection, addDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -32,6 +38,8 @@ export default function NewPlayer() {
     [GameRole.ADC]: 'UNRANKED',
     [GameRole.SUP]: 'UNRANKED',
   })
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
   const toast = useToast()
   const router = useRouter()
 
@@ -88,6 +96,27 @@ export default function NewPlayer() {
     return rates
   }
 
+  // タグを追加
+  const addTag = () => {
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()])
+      setTagInput('')
+    }
+  }
+
+  // タグを削除
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove))
+  }
+
+  // Enterキーでタグを追加
+  const handleTagInputKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addTag()
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -103,7 +132,7 @@ export default function NewPlayer() {
     }
 
     // 確認ダイアログを表示
-    if (!window.confirm(`以下の内容で登録しますか？\n\n名前: ${name}\nメインロール: ${mainRole}`)) {
+    if (!window.confirm(`以下の内容で登録しますか？\n\n名前: ${name}\nメインロール: ${mainRole}\nタグ: ${tags.length > 0 ? tags.join(', ') : 'なし'}`)) {
       return
     }
 
@@ -116,6 +145,7 @@ export default function NewPlayer() {
           wins: 0,
           losses: 0,
         },
+        tags: tags.length > 0 ? tags : undefined,
       }
 
       await addDoc(collection(db, 'players'), player)
@@ -225,6 +255,44 @@ export default function NewPlayer() {
                   </GridItem>
                 ))}
               </Grid>
+            </Card>
+
+            <Card>
+              <FormControl>
+                <FormLabel fontWeight="bold">タグ</FormLabel>
+                <InputGroup>
+                  <Input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={handleTagInputKeyPress}
+                    placeholder="タグを入力してEnterキーを押してください"
+                    size="lg"
+                    borderRadius="md"
+                  />
+                  <InputRightElement width="4.5rem">
+                    <Button h="1.75rem" size="sm" onClick={addTag}>
+                      追加
+                    </Button>
+                  </InputRightElement>
+                </InputGroup>
+                <HStack spacing={2} mt={3} flexWrap="wrap">
+                  {tags.map((tag, index) => (
+                    <Tag
+                      key={index}
+                      size="lg"
+                      borderRadius="full"
+                      variant="solid"
+                      colorScheme="blue"
+                    >
+                      <TagLabel>{tag}</TagLabel>
+                      <TagCloseButton onClick={() => removeTag(tag)} />
+                    </Tag>
+                  ))}
+                </HStack>
+                <Text fontSize="sm" color="gray.600" mt={2}>
+                  よく遊ぶメンバーや特徴をタグで管理できます
+                </Text>
+              </FormControl>
             </Card>
 
             <Button

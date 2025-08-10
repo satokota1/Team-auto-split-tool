@@ -28,6 +28,17 @@ import {
   IconButton,
   Divider,
   useColorModeValue,
+  Checkbox,
+  CheckboxGroup,
+  Wrap,
+  WrapItem,
+  Tag,
+  TagLabel,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
 } from '@chakra-ui/react'
 import { SearchIcon, DeleteIcon, RepeatIcon } from '@chakra-ui/icons'
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
@@ -48,6 +59,7 @@ export default function TeamMaker() {
     red: { player: Player; role: GameRole }[]
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const toast = useToast()
 
   useEffect(() => {
@@ -63,9 +75,22 @@ export default function TeamMaker() {
     fetchPlayers()
   }, [])
 
-  const filteredPlayers = players.filter((player) =>
-    player.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // 利用可能なタグを取得
+  const availableTags = Array.from(
+    new Set(
+      players
+        .flatMap(player => player.tags || [])
+        .filter(tag => tag.trim() !== '')
+    )
+  ).sort()
+
+  // フィルタリングされたプレイヤー
+  const filteredPlayers = players.filter((player) => {
+    const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesTags = selectedTags.length === 0 || 
+      selectedTags.some(tag => player.tags?.includes(tag))
+    return matchesSearch && matchesTags
+  })
 
   const handleAddPlayer = (player: Player) => {
     if (selectedPlayers.length >= 10) {
@@ -282,6 +307,14 @@ export default function TeamMaker() {
 
       await Promise.all(updatePromises)
 
+      // プレイヤーリストを再取得して画面を更新
+      const querySnapshot = await getDocs(collection(db, 'players'))
+      const updatedPlayersData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Player[]
+      setPlayers(updatedPlayersData)
+
       toast({
         title: '成功',
         description: '試合結果を保存しました',
@@ -290,9 +323,9 @@ export default function TeamMaker() {
         isClosable: true,
       })
 
-      // 状態をリセット
+      // チーム構成は保持し、選択されたプレイヤーはリセット
       setSelectedPlayers([])
-      setTeams(null)
+      // setTeams(null) を削除してチーム構成を保持
     } catch (error) {
       console.error('Error saving match:', error)
       toast({
@@ -303,6 +336,34 @@ export default function TeamMaker() {
         isClosable: true,
       })
     }
+  }
+
+  // 同じチーム構成で再戦する機能
+  const handleRematch = () => {
+    if (!teams) return
+    
+    // 現在のチーム構成から選択されたプレイヤーを再構築
+    const newSelectedPlayers: SelectedPlayer[] = [
+      ...teams.blue.map(({ player, role }) => ({
+        player: player as Player & { id: string },
+        preferredRoles: [role, 'FILL'] as [Role, Role]
+      })),
+      ...teams.red.map(({ player, role }) => ({
+        player: player as Player & { id: string },
+        preferredRoles: [role, 'FILL'] as [Role, Role]
+      }))
+    ]
+    
+    setSelectedPlayers(newSelectedPlayers)
+    setTeams(null)
+    
+    toast({
+      title: '再戦準備完了',
+      description: '同じチーム構成で再戦の準備ができました',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    })
   }
 
   const handleSwapPlayers = (team1: 'blue' | 'red', index1: number, team2: 'blue' | 'red', index2: number) => {
@@ -344,152 +405,227 @@ export default function TeamMaker() {
 
   return (
     <Layout>
-      <VStack spacing={8} align="stretch">
-        <HStack justify="space-between" align="center">
-          <Heading color="blue.600" fontSize={{ base: '2xl', md: '3xl' }}>
-            チーム分け
-          </Heading>
-          <Button
-            leftIcon={<RepeatIcon />}
-            colorScheme="blue"
-            onClick={createTeams}
-            isDisabled={selectedPlayers.length !== 10}
-            size="md"
-            boxShadow="md"
-            _hover={{ 
-              transform: 'translateY(-2px)',
-              boxShadow: 'lg'
-            }}
-          >
-            チームを作成
-          </Button>
-        </HStack>
+      <VStack spacing={6} align="stretch">
+        <Heading textAlign="center" color="blue.600" fontSize={{ base: '2xl', md: '3xl' }}>
+          チームメーカー
+        </Heading>
 
-        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+          {/* プレイヤー選択エリア */}
           <Card>
-            <VStack align="stretch" spacing={4}>
+            <CardHeader>
               <Heading size="md" color="gray.700">
-                プレイヤー選択 ({selectedPlayers.length}/10)
+                プレイヤー選択
               </Heading>
-              <InputGroup>
-                <InputLeftElement pointerEvents="none">
-                  <SearchIcon color="gray.300" />
-                </InputLeftElement>
-                <Input
-                  placeholder="プレイヤーを検索"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </InputGroup>
-              <Box maxH="400px" overflowY="auto" px={2}>
-                <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
-                  {filteredPlayers
-                    .filter((p) => !selectedPlayers.some((sp) => sp.player.id === p.id))
-                    .map((player) => (
-                      <Card
-                        key={player.id}
-                        onClick={() => handleAddPlayer(player)}
-                        cursor="pointer"
-                        _hover={{
-                          transform: 'translateY(-2px)',
-                          boxShadow: 'md',
-                        }}
-                        bg={useColorModeValue('gray.50', 'gray.700')}
-                      >
-                        <VStack align="stretch" spacing={2}>
-                          <Text fontWeight="bold">{player.name}</Text>
-                          <Badge
-                            colorScheme={getRoleColor(player.mainRole)}
-                            alignSelf="flex-start"
-                          >
-                            {player.mainRole}
-                          </Badge>
-                          <Text fontSize="sm" color="gray.500">
-                            レート: {player.rates[player.mainRole]}
+            </CardHeader>
+            <CardBody>
+              <VStack spacing={4} align="stretch">
+                {/* 検索バー */}
+                <InputGroup>
+                  <InputLeftElement pointerEvents="none">
+                    <SearchIcon color="gray.300" />
+                  </InputLeftElement>
+                  <Input
+                    placeholder="プレイヤー名で検索..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    size="md"
+                  />
+                </InputGroup>
+
+                {/* タグフィルター */}
+                {availableTags.length > 0 && (
+                  <Accordion allowToggle>
+                    <AccordionItem>
+                      <AccordionButton>
+                        <Box as="span" flex="1" textAlign="left">
+                          <Text fontSize="sm" fontWeight="bold">
+                            タグで絞り込み ({selectedTags.length}個選択中)
                           </Text>
+                        </Box>
+                        <AccordionIcon />
+                      </AccordionButton>
+                      <AccordionPanel>
+                        <VStack spacing={3} align="stretch">
+                          <CheckboxGroup
+                            value={selectedTags}
+                            onChange={(values) => setSelectedTags(values as string[])}
+                          >
+                            <Wrap spacing={2}>
+                              {availableTags.map((tag) => (
+                                <WrapItem key={tag}>
+                                  <Checkbox value={tag} colorScheme="blue">
+                                    <Tag
+                                      size="md"
+                                      variant="outline"
+                                      colorScheme="blue"
+                                    >
+                                      <TagLabel>{tag}</TagLabel>
+                                    </Tag>
+                                  </Checkbox>
+                                </WrapItem>
+                              ))}
+                            </Wrap>
+                          </CheckboxGroup>
+                          {selectedTags.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="gray"
+                              onClick={() => setSelectedTags([])}
+                            >
+                              フィルターをクリア
+                            </Button>
+                          )}
                         </VStack>
-                      </Card>
-                    ))}
-                </SimpleGrid>
-              </Box>
-            </VStack>
+                      </AccordionPanel>
+                    </AccordionItem>
+                  </Accordion>
+                )}
+
+                {/* プレイヤーリスト */}
+                <Box maxH="400px" overflowY="auto">
+                  <VStack spacing={2} align="stretch">
+                    {filteredPlayers.map((player) => {
+                      const isSelected = selectedPlayers.some((sp) => sp.player.id === player.id)
+                      return (
+                        <Card
+                          key={player.id}
+                          bg={isSelected ? 'blue.50' : 'white'}
+                          border="1px solid"
+                          borderColor={isSelected ? 'blue.200' : 'gray.200'}
+                          cursor={isSelected ? 'not-allowed' : 'pointer'}
+                          onClick={() => !isSelected && handleAddPlayer(player)}
+                          _hover={!isSelected ? { bg: 'gray.50' } : {}}
+                        >
+                          <CardBody p={3}>
+                            <VStack spacing={2} align="stretch">
+                              <HStack justify="space-between">
+                                <Text fontWeight="bold">{player.name}</Text>
+                                <Badge colorScheme={getRoleColor(player.mainRole)}>
+                                  {player.mainRole}
+                                </Badge>
+                              </HStack>
+                              <Text fontSize="sm" color="gray.600">
+                                レート: {player.rates[player.mainRole]}
+                              </Text>
+                              {player.tags && player.tags.length > 0 && (
+                                <Wrap spacing={1}>
+                                  {player.tags.map((tag, index) => (
+                                    <WrapItem key={index}>
+                                      <Tag size="sm" variant="outline" colorScheme="blue">
+                                        <TagLabel>{tag}</TagLabel>
+                                      </Tag>
+                                    </WrapItem>
+                                  ))}
+                                </Wrap>
+                              )}
+                            </VStack>
+                          </CardBody>
+                        </Card>
+                      )
+                    })}
+                  </VStack>
+                </Box>
+              </VStack>
+            </CardBody>
           </Card>
 
+          {/* 選択されたプレイヤーエリア */}
           <Card>
-            <VStack align="stretch" spacing={4}>
+            <CardHeader>
               <Heading size="md" color="gray.700">
-                選択済みプレイヤー
+                選択されたプレイヤー ({selectedPlayers.length}/10)
               </Heading>
-              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
-                {selectedPlayers.map((player, index) => (
-                  <Card
-                    key={player.player.id}
-                    bg={useColorModeValue('white', 'gray.700')}
-                    borderWidth="1px"
-                    position="relative"
-                  >
-                    <IconButton
-                      icon={<DeleteIcon />}
-                      aria-label="Remove player"
-                      size="sm"
-                      colorScheme="red"
-                      variant="ghost"
-                      position="absolute"
-                      top={1}
-                      right={1}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemovePlayer(index)
-                      }}
-                      _hover={{
-                        bg: 'red.100',
-                      }}
-                    />
-                    <VStack align="stretch" spacing={1} p={2}>
-                      <Text fontWeight="bold" noOfLines={1} pr={8}>{player.player.name}</Text>
-                      <Badge
-                        colorScheme={getRoleColor(player.player.mainRole)}
-                        alignSelf="flex-start"
-                      >
-                        {player.player.mainRole}
-                      </Badge>
-                      <HStack spacing={2}>
-                        <FormControl size="sm">
-                          <Select
+            </CardHeader>
+            <CardBody>
+              <VStack spacing={4} align="stretch">
+                {selectedPlayers.map((selectedPlayer, index) => (
+                  <Card key={selectedPlayer.player.id} bg="blue.50">
+                    <CardBody p={3}>
+                      <VStack spacing={3} align="stretch">
+                        <HStack justify="space-between">
+                          <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
+                          <IconButton
+                            aria-label="Remove player"
+                            icon={<DeleteIcon />}
                             size="sm"
-                            value={player.preferredRoles[0]}
-                            onChange={(e) =>
-                              handleRoleChange(index, 0, e.target.value as Role)
-                            }
-                          >
-                            {[...Object.values(GameRole), 'FILL'].map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
+                            colorScheme="red"
+                            onClick={() => handleRemovePlayer(index)}
+                          />
+                        </HStack>
+                        <HStack spacing={4}>
+                          <FormControl>
+                            <FormLabel fontSize="sm">希望1</FormLabel>
+                            <Select
+                              size="sm"
+                              value={selectedPlayer.preferredRoles[0]}
+                              onChange={(e) =>
+                                handleRoleChange(index, 0, e.target.value as Role)
+                              }
+                            >
+                              {[...Object.values(GameRole), 'FILL'].map((role) => (
+                                <option key={role} value={role}>
+                                  {role}
+                                </option>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <FormControl>
+                            <FormLabel fontSize="sm">希望2</FormLabel>
+                            <Select
+                              size="sm"
+                              value={selectedPlayer.preferredRoles[1]}
+                              onChange={(e) =>
+                                handleRoleChange(index, 1, e.target.value as Role)
+                              }
+                            >
+                              {[...Object.values(GameRole), 'FILL'].map((role) => (
+                                <option key={role} value={role}>
+                                  {role}
+                                </option>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </HStack>
+                        {selectedPlayer.player.tags && selectedPlayer.player.tags.length > 0 && (
+                          <Wrap spacing={1}>
+                            {selectedPlayer.player.tags.map((tag, tagIndex) => (
+                              <WrapItem key={tagIndex}>
+                                <Tag size="sm" variant="outline" colorScheme="blue">
+                                  <TagLabel>{tag}</TagLabel>
+                                </Tag>
+                              </WrapItem>
                             ))}
-                          </Select>
-                        </FormControl>
-                        <FormControl size="sm">
-                          <Select
-                            size="sm"
-                            value={player.preferredRoles[1]}
-                            onChange={(e) =>
-                              handleRoleChange(index, 1, e.target.value as Role)
-                            }
-                          >
-                            {[...Object.values(GameRole), 'FILL'].map((role) => (
-                              <option key={role} value={role}>
-                                {role}
-                              </option>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </HStack>
-                    </VStack>
+                          </Wrap>
+                        )}
+                      </VStack>
+                    </CardBody>
                   </Card>
                 ))}
-              </SimpleGrid>
-            </VStack>
+
+                {selectedPlayers.length === 0 && (
+                  <Text textAlign="center" color="gray.500">
+                    プレイヤーを選択してください
+                  </Text>
+                )}
+
+                {selectedPlayers.length >= 10 && (
+                  <Text textAlign="center" color="red.500" fontWeight="bold">
+                    最大10人まで選択できます
+                  </Text>
+                )}
+
+                <Button
+                  colorScheme="blue"
+                  onClick={createTeams}
+                  isDisabled={selectedPlayers.length < 10}
+                  size="lg"
+                >
+                  チーム作成
+                </Button>
+              </VStack>
+            </CardBody>
           </Card>
         </SimpleGrid>
 
@@ -580,14 +716,24 @@ export default function TeamMaker() {
                   <Heading size="md" color="gray.700">
                     試合結果
                   </Heading>
-                  <Button
-                    leftIcon={<RepeatIcon />}
-                    colorScheme="green"
-                    onClick={createTeams}
-                    size="sm"
-                  >
-                    チーム再生成
-                  </Button>
+                  <HStack spacing={2}>
+                    <Button
+                      leftIcon={<RepeatIcon />}
+                      colorScheme="green"
+                      onClick={createTeams}
+                      size="sm"
+                    >
+                      チーム再生成
+                    </Button>
+                    <Button
+                      leftIcon={<RepeatIcon />}
+                      colorScheme="purple"
+                      onClick={handleRematch}
+                      size="sm"
+                    >
+                      同じチームで再戦
+                    </Button>
+                  </HStack>
                 </HStack>
                 <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                   <Button

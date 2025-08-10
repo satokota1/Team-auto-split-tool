@@ -1,50 +1,62 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box,
   Button,
+  Container,
   Heading,
+  VStack,
+  HStack,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
-  Text,
-  HStack,
-  VStack,
   Badge,
-  useColorModeValue,
-  Input,
   IconButton,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  useColorModeValue,
+  Text,
+  Tag,
+  TagLabel,
+  Select,
+  Flex,
+  Wrap,
+  WrapItem,
   useToast,
+  TagCloseButton,
 } from '@chakra-ui/react'
-import { AddIcon, EditIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
+import { SearchIcon, AddIcon, EditIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
-import { db } from '../../lib/firebase'
-import { Player, GameRole } from '../../types'
-import Layout from '../../components/Layout'
-import Card from '../../components/Card'
+import { db } from '@/lib/firebase'
+import { Player, GameRole } from '@/types'
+import Layout from '@/components/Layout'
+import Card from '@/components/Card'
 import Link from 'next/link'
 
 interface EditingState {
   id: string | null;
   newName: string;
-  newRate?: number;
 }
 
 export default function Players() {
   const [players, setPlayers] = useState<(Player & { id: string })[]>([])
-  const [editing, setEditing] = useState<EditingState>({ id: null, newName: '' })
-  const tableBg = useColorModeValue('white', 'gray.800')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [editing, setEditing] = useState<{ id: string; newName: string } | null>(null)
+  const [editingTags, setEditingTags] = useState<{ id: string; tags: string[] } | null>(null)
+  const [tagInput, setTagInput] = useState('')
   const borderColor = useColorModeValue('gray.200', 'gray.700')
   const toast = useToast()
 
   useEffect(() => {
     const fetchPlayers = async () => {
       const querySnapshot = await getDocs(collection(db, 'players'))
-      const playersData = querySnapshot.docs.map(doc => ({
+      const playersData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as (Player & { id: string })[]
       setPlayers(playersData)
     }
@@ -66,17 +78,16 @@ export default function Players() {
   const handleEditClick = (player: Player & { id: string }) => {
     setEditing({ 
       id: player.id, 
-      newName: player.name,
-      newRate: player.rates[player.mainRole]
+      newName: player.name
     })
   }
 
   const handleCancelEdit = () => {
-    setEditing({ id: null, newName: '', newRate: undefined })
+    setEditing(null)
   }
 
-  const handleSaveEdit = async (playerId: string, player: Player & { id: string }) => {
-    if (!editing.newName.trim()) {
+  const handleSaveEdit = async (playerId: string) => {
+    if (!editing?.newName.trim()) {
       toast({
         title: 'エラー',
         description: '名前を入力してください',
@@ -87,42 +98,23 @@ export default function Players() {
       return
     }
 
-    if (editing.newRate === undefined || isNaN(editing.newRate)) {
-      toast({
-        title: 'エラー',
-        description: 'レートを入力してください',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-      return
-    }
-
     try {
       const playerRef = doc(db, 'players', playerId)
-      const updatedRates = { ...player.rates }
-      updatedRates[player.mainRole] = editing.newRate
-
       await updateDoc(playerRef, {
-        name: editing.newName.trim(),
-        rates: updatedRates
+        name: editing.newName.trim()
       })
 
       setPlayers(players.map(p => 
         p.id === playerId 
-          ? { 
-              ...p, 
-              name: editing.newName.trim(),
-              rates: updatedRates
-            }
+          ? { ...p, name: editing.newName.trim() }
           : p
       ))
 
-      setEditing({ id: null, newName: '', newRate: undefined })
+      setEditing(null)
 
       toast({
         title: '更新完了',
-        description: 'プレイヤー情報を更新しました',
+        description: 'プレイヤー名を更新しました',
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -137,6 +129,95 @@ export default function Players() {
       })
     }
   }
+
+  // タグを追加
+  const addTag = (playerId: string) => {
+    if (tagInput.trim() && editingTags && !editingTags.tags.includes(tagInput.trim())) {
+      setEditingTags({
+        ...editingTags,
+        tags: [...editingTags.tags, tagInput.trim()]
+      })
+      setTagInput('')
+    }
+  }
+
+  // タグを削除
+  const removeTag = (playerId: string, tagToRemove: string) => {
+    if (editingTags) {
+      setEditingTags({
+        ...editingTags,
+        tags: editingTags.tags.filter(tag => tag !== tagToRemove)
+      })
+    }
+  }
+
+  // タグ編集を開始
+  const handleEditTagsClick = (player: Player & { id: string }) => {
+    setEditingTags({
+      id: player.id,
+      tags: player.tags || []
+    })
+  }
+
+  // タグ編集を保存
+  const handleSaveTags = async (playerId: string) => {
+    if (!editingTags) return
+
+    try {
+      const playerRef = doc(db, 'players', playerId)
+      await updateDoc(playerRef, {
+        tags: editingTags.tags.length > 0 ? editingTags.tags : null
+      })
+
+      // プレイヤーリストを更新
+      setPlayers(players.map(player => 
+        player.id === playerId 
+          ? { ...player, tags: editingTags.tags.length > 0 ? editingTags.tags : undefined }
+          : player
+      ))
+
+      setEditingTags(null)
+      toast({
+        title: '成功',
+        description: 'タグを更新しました',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error) {
+      console.error('Error updating tags:', error)
+      toast({
+        title: 'エラー',
+        description: 'タグの更新に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
+
+  // タグ編集をキャンセル
+  const handleCancelTags = () => {
+    setEditingTags(null)
+    setTagInput('')
+  }
+
+  // 利用可能なタグを取得
+  const availableTags = Array.from(
+    new Set(
+      players
+        .flatMap(player => player.tags || [])
+        .filter(tag => tag.trim() !== '')
+    )
+  ).sort()
+
+  // フィルタリングされたプレイヤー
+  const filteredPlayers = players.filter((player) => {
+    const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesTags = selectedTags.length === 0 || 
+      selectedTags.some(tag => player.tags?.includes(tag))
+    return matchesSearch && matchesTags
+  })
 
   return (
     <Layout>
@@ -162,25 +243,86 @@ export default function Players() {
           </Link>
         </HStack>
 
-        <Card p={0}>
+        <Card>
+          <Box p={4}>
+            <VStack spacing={4} align="stretch">
+              {/* 検索バー */}
+              <InputGroup>
+                <InputLeftElement pointerEvents="none">
+                  <SearchIcon color="gray.300" />
+                </InputLeftElement>
+                <Input
+                  placeholder="プレイヤー名で検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  size="md"
+                />
+              </InputGroup>
+
+              {/* タグフィルター */}
+              {availableTags.length > 0 && (
+                <Box>
+                  <Text fontSize="sm" fontWeight="bold" mb={2}>
+                    タグで絞り込み:
+                  </Text>
+                  <Wrap spacing={2}>
+                    {availableTags.map((tag) => (
+                      <WrapItem key={tag}>
+                        <Tag
+                          size="md"
+                          variant={selectedTags.includes(tag) ? "solid" : "outline"}
+                          colorScheme={selectedTags.includes(tag) ? "blue" : "gray"}
+                          cursor="pointer"
+                          onClick={() => {
+                            if (selectedTags.includes(tag)) {
+                              setSelectedTags(selectedTags.filter(t => t !== tag))
+                            } else {
+                              setSelectedTags([...selectedTags, tag])
+                            }
+                          }}
+                          _hover={{ opacity: 0.8 }}
+                        >
+                          <TagLabel>{tag}</TagLabel>
+                        </Tag>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                  {selectedTags.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="gray"
+                      onClick={() => setSelectedTags([])}
+                      mt={2}
+                    >
+                      フィルターをクリア
+                    </Button>
+                  )}
+                </Box>
+              )}
+            </VStack>
+          </Box>
+
           <Box overflowX="auto">
             <Table variant="simple">
               <Thead bg="gray.50">
                 <Tr>
                   <Th borderColor={borderColor}>名前</Th>
                   <Th borderColor={borderColor}>メインロール</Th>
+                  <Th borderColor={borderColor}>タグ</Th>
                   <Th borderColor={borderColor} isNumeric>勝率</Th>
                   <Th borderColor={borderColor} isNumeric>レート</Th>
-                  <Th borderColor={borderColor} width="100px"></Th>
+                  <Th borderColor={borderColor} width="120px"></Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {players.map((player) => {
+                {filteredPlayers.map((player) => {
                   const winRate = player.stats.wins + player.stats.losses > 0
                     ? Math.round((player.stats.wins / (player.stats.wins + player.stats.losses)) * 100)
                     : 0
 
-                  const isEditing = editing.id === player.id
+                  const isEditing = editing?.id === player.id
+                  const isEditingTags = editingTags?.id === player.id
 
                   return (
                     <Tr 
@@ -211,6 +353,68 @@ export default function Players() {
                           {player.mainRole}
                         </Badge>
                       </Td>
+                      <Td borderColor={borderColor}>
+                        {isEditingTags ? (
+                          <VStack spacing={2} align="stretch">
+                            <HStack>
+                              <Input
+                                value={tagInput}
+                                onChange={(e) => setTagInput(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    addTag(player.id)
+                                  }
+                                }}
+                                placeholder="タグを入力"
+                                size="sm"
+                              />
+                              <Button size="sm" onClick={() => addTag(player.id)}>
+                                追加
+                              </Button>
+                            </HStack>
+                            <Wrap spacing={1}>
+                              {editingTags.tags.map((tag, index) => (
+                                <WrapItem key={index}>
+                                  <Tag
+                                    size="sm"
+                                    variant="solid"
+                                    colorScheme="blue"
+                                  >
+                                    <TagLabel>{tag}</TagLabel>
+                                    <TagCloseButton onClick={() => removeTag(player.id, tag)} />
+                                  </Tag>
+                                </WrapItem>
+                              ))}
+                            </Wrap>
+                          </VStack>
+                        ) : (
+                          <Wrap spacing={1}>
+                            {player.tags?.map((tag, index) => (
+                              <WrapItem key={index}>
+                                <Tag
+                                  size="sm"
+                                  variant="outline"
+                                  colorScheme="blue"
+                                  cursor="pointer"
+                                  onClick={() => {
+                                    if (!selectedTags.includes(tag)) {
+                                      setSelectedTags([...selectedTags, tag])
+                                    }
+                                  }}
+                                  _hover={{ opacity: 0.8 }}
+                                >
+                                  <TagLabel>{tag}</TagLabel>
+                                </Tag>
+                              </WrapItem>
+                            )) || (
+                              <Text fontSize="sm" color="gray.400">
+                                タグなし
+                              </Text>
+                            )}
+                          </Wrap>
+                        )}
+                      </Td>
                       <Td borderColor={borderColor} isNumeric>
                         <Text 
                           color={winRate >= 50 ? 'green.500' : 'red.500'}
@@ -223,23 +427,9 @@ export default function Players() {
                         </Text>
                       </Td>
                       <Td borderColor={borderColor} isNumeric>
-                        {isEditing ? (
-                          <Input
-                            value={editing.newRate ?? ''}
-                            onChange={(e) => setEditing({ 
-                              ...editing, 
-                              newRate: parseInt(e.target.value) || undefined 
-                            })}
-                            size="sm"
-                            width="100px"
-                            type="number"
-                            textAlign="right"
-                          />
-                        ) : (
-                          <Text fontWeight="bold">
-                            {player.rates[player.mainRole]}
-                          </Text>
-                        )}
+                        <Text fontWeight="bold">
+                          {player.rates[player.mainRole]}
+                        </Text>
                       </Td>
                       <Td borderColor={borderColor}>
                         <HStack spacing={2} justify="flex-end">
@@ -250,7 +440,7 @@ export default function Players() {
                                 icon={<CheckIcon />}
                                 size="sm"
                                 colorScheme="green"
-                                onClick={() => handleSaveEdit(player.id, player)}
+                                onClick={() => handleSaveEdit(player.id)}
                               />
                               <IconButton
                                 aria-label="Cancel"
@@ -260,14 +450,41 @@ export default function Players() {
                                 onClick={handleCancelEdit}
                               />
                             </>
+                          ) : isEditingTags ? (
+                            <>
+                              <IconButton
+                                aria-label="Save tags"
+                                icon={<CheckIcon />}
+                                size="sm"
+                                colorScheme="green"
+                                onClick={() => handleSaveTags(player.id)}
+                              />
+                              <IconButton
+                                aria-label="Cancel tags"
+                                icon={<CloseIcon />}
+                                size="sm"
+                                colorScheme="red"
+                                onClick={handleCancelTags}
+                              />
+                            </>
                           ) : (
-                            <IconButton
-                              aria-label="Edit"
-                              icon={<EditIcon />}
-                              size="sm"
-                              colorScheme="blue"
-                              onClick={() => handleEditClick(player)}
-                            />
+                            <>
+                              <IconButton
+                                aria-label="Edit name"
+                                icon={<EditIcon />}
+                                size="sm"
+                                colorScheme="blue"
+                                onClick={() => handleEditClick(player)}
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                colorScheme="blue"
+                                onClick={() => handleEditTagsClick(player)}
+                              >
+                                タグ編集
+                              </Button>
+                            </>
                           )}
                         </HStack>
                       </Td>

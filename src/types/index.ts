@@ -38,6 +38,7 @@ export interface Player {
     wins: number
     losses: number
   }
+  tags?: string[] // タグ機能を追加
 }
 
 export interface SelectedPlayer {
