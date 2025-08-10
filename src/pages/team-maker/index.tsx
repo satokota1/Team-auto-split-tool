@@ -49,6 +49,8 @@ import Layout from '../../components/Layout'
 interface SelectedPlayer {
   player: Player & { id: string }
   preferredRoles: [Role, Role]
+  roleWish?: GameRole | undefined
+  roleWishPriority?: 'HIGH' | 'MEDIUM' | 'LOW' | undefined
 }
 
 export default function TeamMaker() {
@@ -109,6 +111,8 @@ export default function TeamMaker() {
       {
         player,
         preferredRoles: [player.mainRole, 'FILL'],
+        roleWish: undefined,
+        roleWishPriority: undefined,
       },
     ])
   }
@@ -120,6 +124,26 @@ export default function TeamMaker() {
   const handleRoleChange = (index: number, roleIndex: 0 | 1, role: Role) => {
     const newSelectedPlayers = [...selectedPlayers]
     newSelectedPlayers[index].preferredRoles[roleIndex] = role
+    setSelectedPlayers(newSelectedPlayers)
+  }
+
+  // ロール希望を設定
+  const handleRoleWishChange = (index: number, roleWish: GameRole | undefined) => {
+    const newSelectedPlayers = [...selectedPlayers]
+    newSelectedPlayers[index].roleWish = roleWish
+    // ロール希望を変更した場合、優先度をリセット
+    if (roleWish) {
+      newSelectedPlayers[index].roleWishPriority = 'MEDIUM'
+    } else {
+      newSelectedPlayers[index].roleWishPriority = undefined
+    }
+    setSelectedPlayers(newSelectedPlayers)
+  }
+
+  // ロール希望の優先度を設定
+  const handleRoleWishPriorityChange = (index: number, priority: 'HIGH' | 'MEDIUM' | 'LOW') => {
+    const newSelectedPlayers = [...selectedPlayers]
+    newSelectedPlayers[index].roleWishPriority = priority
     setSelectedPlayers(newSelectedPlayers)
   }
 
@@ -159,7 +183,26 @@ export default function TeamMaker() {
       [GameRole.SUP]: [],
     }
 
-    selectedPlayers.forEach((player) => {
+    // ロール希望を持つプレイヤーを優先的に配置
+    const roleWishPlayers = selectedPlayers.filter(p => p.roleWish && p.roleWishPriority)
+    const nonRoleWishPlayers = selectedPlayers.filter(p => !p.roleWish || !p.roleWishPriority)
+
+    // ロール希望を持つプレイヤーを優先度順にソート
+    const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 }
+    const sortedRoleWishPlayers = roleWishPlayers.sort((a, b) => {
+      const priorityA = priorityOrder[a.roleWishPriority!]
+      const priorityB = priorityOrder[b.roleWishPriority!]
+      return priorityB - priorityA
+    })
+
+    // ロール希望を持つプレイヤーを優先的に配置
+    sortedRoleWishPlayers.forEach((player) => {
+      const wishRole = player.roleWish!
+      primaryRoleGroups[wishRole].unshift(player) // 先頭に追加して優先度を高める
+    })
+
+    // 通常のプレイヤーを配置
+    nonRoleWishPlayers.forEach((player) => {
       // 希望1のロールを追加
       if (player.preferredRoles[0] !== 'FILL') {
         primaryRoleGroups[player.preferredRoles[0] as GameRole].push(player)
@@ -346,11 +389,15 @@ export default function TeamMaker() {
     const newSelectedPlayers: SelectedPlayer[] = [
       ...teams.blue.map(({ player, role }) => ({
         player: player as Player & { id: string },
-        preferredRoles: [role, 'FILL'] as [Role, Role]
+        preferredRoles: [role, 'FILL'] as [Role, Role],
+        roleWish: role, // 現在のロールをロール希望として設定
+        roleWishPriority: 'HIGH' as const, // 再戦時は高優先度
       })),
       ...teams.red.map(({ player, role }) => ({
         player: player as Player & { id: string },
-        preferredRoles: [role, 'FILL'] as [Role, Role]
+        preferredRoles: [role, 'FILL'] as [Role, Role],
+        roleWish: role, // 現在のロールをロール希望として設定
+        roleWishPriority: 'HIGH' as const, // 再戦時は高優先度
       }))
     ]
     
@@ -359,7 +406,7 @@ export default function TeamMaker() {
     
     toast({
       title: '再戦準備完了',
-      description: '同じチーム構成で再戦の準備ができました',
+      description: '同じチーム構成で再戦の準備ができました（ロール希望も設定済み）',
       status: 'success',
       duration: 3000,
       isClosable: true,
@@ -588,6 +635,65 @@ export default function TeamMaker() {
                             </Select>
                           </FormControl>
                         </HStack>
+                        
+                        {/* ロール希望設定 */}
+                        <VStack spacing={3} align="stretch">
+                          <Text fontSize="sm" fontWeight="bold" color="blue.600">
+                            その日のロール希望
+                          </Text>
+                          <HStack spacing={4}>
+                            <FormControl>
+                              <FormLabel fontSize="sm">やりたいロール</FormLabel>
+                              <Select
+                                size="sm"
+                                value={selectedPlayer.roleWish || ''}
+                                onChange={(e) =>
+                                  handleRoleWishChange(index, e.target.value ? e.target.value as GameRole : undefined)
+                                }
+                                placeholder="選択してください"
+                              >
+                                {Object.values(GameRole).map((role) => (
+                                  <option key={role} value={role}>
+                                    {role}
+                                  </option>
+                                ))}
+                              </Select>
+                            </FormControl>
+                            <FormControl>
+                              <FormLabel fontSize="sm">優先度</FormLabel>
+                              <Select
+                                size="sm"
+                                value={selectedPlayer.roleWishPriority || ''}
+                                onChange={(e) =>
+                                  handleRoleWishPriorityChange(index, e.target.value as 'HIGH' | 'MEDIUM' | 'LOW')
+                                }
+                                placeholder="選択してください"
+                                isDisabled={!selectedPlayer.roleWish}
+                              >
+                                <option value="HIGH">高</option>
+                                <option value="MEDIUM">中</option>
+                                <option value="LOW">低</option>
+                              </Select>
+                            </FormControl>
+                          </HStack>
+                          {selectedPlayer.roleWish && selectedPlayer.roleWishPriority && (
+                            <HStack spacing={2}>
+                              <Tag
+                                size="sm"
+                                variant="solid"
+                                colorScheme={
+                                  selectedPlayer.roleWishPriority === 'HIGH' ? 'red' :
+                                  selectedPlayer.roleWishPriority === 'MEDIUM' ? 'orange' : 'green'
+                                }
+                              >
+                                <TagLabel>
+                                  {selectedPlayer.roleWish} ({selectedPlayer.roleWishPriority === 'HIGH' ? '高' : selectedPlayer.roleWishPriority === 'MEDIUM' ? '中' : '低'}優先度)
+                                </TagLabel>
+                              </Tag>
+                            </HStack>
+                          )}
+                        </VStack>
+                        
                         {selectedPlayer.player.tags && selectedPlayer.player.tags.length > 0 && (
                           <Wrap spacing={1}>
                             {selectedPlayer.player.tags.map((tag, tagIndex) => (

@@ -42,8 +42,10 @@ export interface Player {
 }
 
 export interface SelectedPlayer {
-  player: Player
+  player: Player & { id: string }
   preferredRoles: [Role, Role]
+  roleWish?: GameRole // その日にやりたいロールの希望
+  roleWishPriority?: 'HIGH' | 'MEDIUM' | 'LOW' // ロール希望の優先度
 }
 
 export interface TeamPlayer {
