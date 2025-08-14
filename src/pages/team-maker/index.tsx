@@ -48,7 +48,8 @@ import Layout from '../../components/Layout'
 
 interface SelectedPlayer {
   player: Player & { id: string }
-  preferredRoles: [Role, Role]
+  wantedRoles: GameRole[]
+  unwantedRoles: GameRole[]
   roleWish?: GameRole | undefined
   roleWishPriority?: 'HIGH' | 'MEDIUM' | 'LOW' | undefined
 }
@@ -110,7 +111,8 @@ export default function TeamMaker() {
       ...selectedPlayers,
       {
         player,
-        preferredRoles: [player.mainRole, 'FILL'],
+        wantedRoles: [player.mainRole],
+        unwantedRoles: [],
         roleWish: undefined,
         roleWishPriority: undefined,
       },
@@ -121,9 +123,39 @@ export default function TeamMaker() {
     setSelectedPlayers(selectedPlayers.filter((_, i) => i !== index))
   }
 
-  const handleRoleChange = (index: number, roleIndex: 0 | 1, role: Role) => {
+  // やりたいロールを追加/削除
+  const handleWantedRoleToggle = (index: number, role: GameRole) => {
     const newSelectedPlayers = [...selectedPlayers]
-    newSelectedPlayers[index].preferredRoles[roleIndex] = role
+    const currentWantedRoles = newSelectedPlayers[index].wantedRoles
+    const currentUnwantedRoles = newSelectedPlayers[index].unwantedRoles
+    
+    if (currentWantedRoles.includes(role)) {
+      // やりたいロールから削除
+      newSelectedPlayers[index].wantedRoles = currentWantedRoles.filter(r => r !== role)
+    } else {
+      // やりたいロールに追加（絶対にやりたくないロールからは削除）
+      newSelectedPlayers[index].wantedRoles = [...currentWantedRoles, role]
+      newSelectedPlayers[index].unwantedRoles = currentUnwantedRoles.filter(r => r !== role)
+    }
+    
+    setSelectedPlayers(newSelectedPlayers)
+  }
+
+  // 絶対にやりたくないロールを追加/削除
+  const handleUnwantedRoleToggle = (index: number, role: GameRole) => {
+    const newSelectedPlayers = [...selectedPlayers]
+    const currentWantedRoles = newSelectedPlayers[index].wantedRoles
+    const currentUnwantedRoles = newSelectedPlayers[index].unwantedRoles
+    
+    if (currentUnwantedRoles.includes(role)) {
+      // 絶対にやりたくないロールから削除
+      newSelectedPlayers[index].unwantedRoles = currentUnwantedRoles.filter(r => r !== role)
+    } else {
+      // 絶対にやりたくないロールに追加（やりたいロールからは削除）
+      newSelectedPlayers[index].unwantedRoles = [...currentUnwantedRoles, role]
+      newSelectedPlayers[index].wantedRoles = currentWantedRoles.filter(r => r !== role)
+    }
+    
     setSelectedPlayers(newSelectedPlayers)
   }
 
@@ -160,6 +192,37 @@ export default function TeamMaker() {
         description: '10人を選択してください',
         status: 'error',
         duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
+    // 絶対にやりたくないロールのチェック
+    const allUnwantedRoles = selectedPlayers.flatMap(p => p.unwantedRoles)
+    const roleCounts = {
+      [GameRole.TOP]: 0,
+      [GameRole.JUNGLE]: 0,
+      [GameRole.MID]: 0,
+      [GameRole.ADC]: 0,
+      [GameRole.SUP]: 0,
+    }
+    
+    // 各ロールの絶対にやりたくない人数をカウント
+    allUnwantedRoles.forEach(role => {
+      roleCounts[role]++
+    })
+    
+    // 絶対にやりたくないロールが多すぎる場合のチェック
+    const maxUnwantedPerRole = 8 // 10人中8人以上が絶対にやりたくない場合はチーム分け不可
+    const problematicRoles = Object.entries(roleCounts).filter(([role, count]) => count >= maxUnwantedPerRole)
+    
+    if (problematicRoles.length > 0) {
+      const roleNames = problematicRoles.map(([role]) => role).join(', ')
+      toast({
+        title: 'チーム分けエラー',
+        description: `${roleNames}ロールを絶対にやりたくないプレイヤーが多すぎます。チーム分けができません。`,
+        status: 'error',
+        duration: 5000,
         isClosable: true,
       })
       return
@@ -203,26 +266,26 @@ export default function TeamMaker() {
 
     // 通常のプレイヤーを配置
     nonRoleWishPlayers.forEach((player) => {
-      // 希望1のロールを追加
-      if (player.preferredRoles[0] !== 'FILL') {
-        primaryRoleGroups[player.preferredRoles[0] as GameRole].push(player)
-      }
-
-      // 希望2のロールとFILLを追加
-      if (player.preferredRoles[1] === 'FILL') {
-        Object.values(GameRole).forEach((gameRole) => {
-          secondaryRoleGroups[gameRole].push(player)
+      // やりたいロールを優先的に配置
+      if (player.wantedRoles.length > 0) {
+        player.wantedRoles.forEach((role) => {
+          primaryRoleGroups[role].push(player)
         })
       } else {
-        secondaryRoleGroups[player.preferredRoles[1] as GameRole].push(player)
-      }
-
-      // 希望1がFILLの場合は全ロールに追加
-      if (player.preferredRoles[0] === 'FILL') {
+        // やりたいロールがない場合は、絶対にやりたくないロール以外を全ロールに追加
         Object.values(GameRole).forEach((gameRole) => {
-          primaryRoleGroups[gameRole].push(player)
+          if (!player.unwantedRoles.includes(gameRole)) {
+            primaryRoleGroups[gameRole].push(player)
+          }
         })
       }
+
+      // 絶対にやりたくないロール以外をセカンダリグループに追加
+      Object.values(GameRole).forEach((gameRole) => {
+        if (!player.unwantedRoles.includes(gameRole)) {
+          secondaryRoleGroups[gameRole].push(player)
+        }
+      })
     })
 
     const roles: GameRole[] = [GameRole.TOP, GameRole.JUNGLE, GameRole.MID, GameRole.ADC, GameRole.SUP]
@@ -240,7 +303,7 @@ export default function TeamMaker() {
       // ランダムな順序でロールを処理
       const shuffledRoles = [...roles].sort(() => Math.random() - 0.5)
 
-      // まず希望1のロールでチームを作成
+                    // まずやりたいロールでチームを作成
       const createTeamWithPrimaryRoles = (team: typeof blueTeam, roleGroups: typeof primaryRoleGroups) => {
         shuffledRoles.forEach(role => {
           if (team.length >= 5) return
@@ -253,28 +316,31 @@ export default function TeamMaker() {
             const player = availablePlayers[0]
             team.push({ player: player.player, role })
             assignedPlayers.add(player.player.id)
-            if (player.preferredRoles[0] === role || player.preferredRoles[0] === 'FILL') {
+            if (player.wantedRoles.includes(role)) {
               primaryRoleCount++
             }
           }
         })
       }
 
-      // 残りのロールを希望2とFILLで埋める
+      // 残りのロールを埋める（絶対にやりたくないロールは除外）
       const fillRemainingRoles = (team: typeof blueTeam) => {
         while (team.length < 5) {
-          const availablePlayer = selectedPlayers
-            .filter(p => !assignedPlayers.has(p.player.id))
-            .sort(() => Math.random() - 0.5)[0]
-          if (!availablePlayer) break
-
           const availableRole = shuffledRoles.find(role => !team.some(p => p.role === role))
           if (!availableRole) break
+
+          const availablePlayer = selectedPlayers
+            .filter(p => !assignedPlayers.has(p.player.id) && !p.unwantedRoles.includes(availableRole))
+            .sort(() => Math.random() - 0.5)[0]
+          
+          if (!availablePlayer) break
 
           team.push({ player: availablePlayer.player, role: availableRole })
           assignedPlayers.add(availablePlayer.player.id)
         }
       }
+
+
 
       // ブルーチームを作成
       createTeamWithPrimaryRoles(blueTeam, primaryRoleGroups)
@@ -304,10 +370,10 @@ export default function TeamMaker() {
 
     if (bestTeams) {
       setTeams(bestTeams)
-      // 希望1のロールに配置できた人数を表示
+      // やりたいロールに配置できた人数を表示
       toast({
         title: 'チーム作成完了',
-        description: `${maxPrimaryRoleCount}人が第一希望のロールで配置されました`,
+        description: `${maxPrimaryRoleCount}人がやりたいロールで配置されました`,
         status: 'success',
         duration: 5000,
         isClosable: true,
@@ -389,13 +455,15 @@ export default function TeamMaker() {
     const newSelectedPlayers: SelectedPlayer[] = [
       ...teams.blue.map(({ player, role }) => ({
         player: player as Player & { id: string },
-        preferredRoles: [role, 'FILL'] as [Role, Role],
+        wantedRoles: [role],
+        unwantedRoles: [],
         roleWish: role, // 現在のロールをロール希望として設定
         roleWishPriority: 'HIGH' as const, // 再戦時は高優先度
       })),
       ...teams.red.map(({ player, role }) => ({
         player: player as Player & { id: string },
-        preferredRoles: [role, 'FILL'] as [Role, Role],
+        wantedRoles: [role],
+        unwantedRoles: [],
         roleWish: role, // 現在のロールをロール希望として設定
         roleWishPriority: 'HIGH' as const, // 再戦時は高優先度
       }))
@@ -601,40 +669,53 @@ export default function TeamMaker() {
                             onClick={() => handleRemovePlayer(index)}
                           />
                         </HStack>
-                        <HStack spacing={4}>
-                          <FormControl>
-                            <FormLabel fontSize="sm">希望1</FormLabel>
-                            <Select
-                              size="sm"
-                              value={selectedPlayer.preferredRoles[0]}
-                              onChange={(e) =>
-                                handleRoleChange(index, 0, e.target.value as Role)
-                              }
-                            >
-                              {[...Object.values(GameRole), 'FILL'].map((role) => (
-                                <option key={role} value={role}>
-                                  {role}
-                                </option>
-                              ))}
-                            </Select>
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel fontSize="sm">希望2</FormLabel>
-                            <Select
-                              size="sm"
-                              value={selectedPlayer.preferredRoles[1]}
-                              onChange={(e) =>
-                                handleRoleChange(index, 1, e.target.value as Role)
-                              }
-                            >
-                              {[...Object.values(GameRole), 'FILL'].map((role) => (
-                                <option key={role} value={role}>
-                                  {role}
-                                </option>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </HStack>
+                        <VStack spacing={3} align="stretch">
+                          <Text fontSize="sm" fontWeight="bold" color="green.600">
+                            やりたいロール
+                          </Text>
+                          <Wrap spacing={2}>
+                            {Object.values(GameRole).map((role) => (
+                              <WrapItem key={role}>
+                                <Checkbox
+                                  isChecked={selectedPlayer.wantedRoles.includes(role)}
+                                  onChange={() => handleWantedRoleToggle(index, role)}
+                                  colorScheme="green"
+                                >
+                                  <Tag
+                                    size="md"
+                                    variant={selectedPlayer.wantedRoles.includes(role) ? "solid" : "outline"}
+                                    colorScheme="green"
+                                  >
+                                    <TagLabel>{role}</TagLabel>
+                                  </Tag>
+                                </Checkbox>
+                              </WrapItem>
+                            ))}
+                          </Wrap>
+                          
+                          <Text fontSize="sm" fontWeight="bold" color="red.600">
+                            絶対にやりたくないロール
+                          </Text>
+                          <Wrap spacing={2}>
+                            {Object.values(GameRole).map((role) => (
+                              <WrapItem key={role}>
+                                <Checkbox
+                                  isChecked={selectedPlayer.unwantedRoles.includes(role)}
+                                  onChange={() => handleUnwantedRoleToggle(index, role)}
+                                  colorScheme="red"
+                                >
+                                  <Tag
+                                    size="md"
+                                    variant={selectedPlayer.unwantedRoles.includes(role) ? "solid" : "outline"}
+                                    colorScheme="red"
+                                  >
+                                    <TagLabel>{role}</TagLabel>
+                                  </Tag>
+                                </Checkbox>
+                              </WrapItem>
+                            ))}
+                          </Wrap>
+                        </VStack>
                         
                         {/* ロール希望設定 */}
                         <VStack spacing={3} align="stretch">
