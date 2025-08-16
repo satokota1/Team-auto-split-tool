@@ -27,6 +27,11 @@ import {
   WrapItem,
   useToast,
   TagCloseButton,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
 } from '@chakra-ui/react'
 import { SearchIcon, AddIcon, EditIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
@@ -41,12 +46,18 @@ interface EditingState {
   newName: string;
 }
 
+interface EditingRates {
+  id: string;
+  rates: { [key in GameRole]: number };
+}
+
 export default function Players() {
   const [players, setPlayers] = useState<(Player & { id: string })[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [editing, setEditing] = useState<{ id: string; newName: string } | null>(null)
   const [editingTags, setEditingTags] = useState<{ id: string; tags: string[] } | null>(null)
+  const [editingRates, setEditingRates] = useState<EditingRates | null>(null)
   const [tagInput, setTagInput] = useState('')
   const borderColor = useColorModeValue('gray.200', 'gray.700')
   const toast = useToast()
@@ -202,6 +213,65 @@ export default function Players() {
     setTagInput('')
   }
 
+  const handleEditRatesClick = (player: Player & { id: string }) => {
+    setEditingRates({
+      id: player.id,
+      rates: { ...player.rates }
+    })
+  }
+
+  const handleSaveRates = async (playerId: string) => {
+    if (!editingRates) return
+
+    try {
+      const playerRef = doc(db, 'players', playerId)
+      await updateDoc(playerRef, {
+        rates: editingRates.rates
+      })
+
+      // プレイヤーリストを更新
+      setPlayers(players.map(player => 
+        player.id === playerId 
+          ? { ...player, rates: editingRates.rates }
+          : player
+      ))
+
+      setEditingRates(null)
+      toast({
+        title: '成功',
+        description: 'レートを更新しました',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error) {
+      console.error('Error updating rates:', error)
+      toast({
+        title: 'エラー',
+        description: 'レートの更新に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
+
+  const handleCancelRates = () => {
+    setEditingRates(null)
+  }
+
+  const handleRateChange = (role: GameRole, value: number) => {
+    if (editingRates) {
+      setEditingRates({
+        ...editingRates,
+        rates: {
+          ...editingRates.rates,
+          [role]: value
+        }
+      })
+    }
+  }
+
   // 利用可能なタグを取得
   const availableTags = Array.from(
     new Set(
@@ -304,14 +374,18 @@ export default function Players() {
           </Box>
 
           <Box overflowX="auto">
-            <Table variant="simple">
+            <Table variant="simple" size="sm">
               <Thead bg="gray.50">
                 <Tr>
                   <Th borderColor={borderColor}>名前</Th>
                   <Th borderColor={borderColor}>メインロール</Th>
                   <Th borderColor={borderColor}>タグ</Th>
                   <Th borderColor={borderColor} isNumeric>勝率</Th>
-                  <Th borderColor={borderColor} isNumeric>レート</Th>
+                  <Th borderColor={borderColor} isNumeric>TOP</Th>
+                  <Th borderColor={borderColor} isNumeric>JUNGLE</Th>
+                  <Th borderColor={borderColor} isNumeric>MID</Th>
+                  <Th borderColor={borderColor} isNumeric>ADC</Th>
+                  <Th borderColor={borderColor} isNumeric>SUP</Th>
                   <Th borderColor={borderColor} width="120px"></Th>
                 </Tr>
               </Thead>
@@ -323,6 +397,7 @@ export default function Players() {
 
                   const isEditing = editing?.id === player.id
                   const isEditingTags = editingTags?.id === player.id
+                  const isEditingRates = editingRates?.id === player.id
 
                   return (
                     <Tr 
@@ -426,10 +501,130 @@ export default function Players() {
                           ({player.stats.wins}勝{player.stats.losses}敗)
                         </Text>
                       </Td>
+                      {/* TOPレート */}
                       <Td borderColor={borderColor} isNumeric>
-                        <Text fontWeight="bold">
-                          {player.rates[player.mainRole]}
-                        </Text>
+                        {isEditingRates ? (
+                          <NumberInput
+                            size="sm"
+                            min={0}
+                            max={5000}
+                            value={editingRates.rates.TOP}
+                            onChange={(_, value) => handleRateChange(GameRole.TOP, value)}
+                          >
+                            <NumberInputField />
+                            <NumberInputStepper>
+                              <NumberIncrementStepper />
+                              <NumberDecrementStepper />
+                            </NumberInputStepper>
+                          </NumberInput>
+                        ) : (
+                          <Text 
+                            fontWeight="bold"
+                            color={player.mainRole === GameRole.TOP ? 'blue.600' : 'inherit'}
+                          >
+                            {player.rates.TOP}
+                          </Text>
+                        )}
+                      </Td>
+                      {/* JUNGLEレート */}
+                      <Td borderColor={borderColor} isNumeric>
+                        {isEditingRates ? (
+                          <NumberInput
+                            size="sm"
+                            min={0}
+                            max={5000}
+                            value={editingRates.rates.JUNGLE}
+                            onChange={(_, value) => handleRateChange(GameRole.JUNGLE, value)}
+                          >
+                            <NumberInputField />
+                            <NumberInputStepper>
+                              <NumberIncrementStepper />
+                              <NumberDecrementStepper />
+                            </NumberInputStepper>
+                          </NumberInput>
+                        ) : (
+                          <Text 
+                            fontWeight="bold"
+                            color={player.mainRole === GameRole.JUNGLE ? 'blue.600' : 'inherit'}
+                          >
+                            {player.rates.JUNGLE}
+                          </Text>
+                        )}
+                      </Td>
+                      {/* MIDレート */}
+                      <Td borderColor={borderColor} isNumeric>
+                        {isEditingRates ? (
+                          <NumberInput
+                            size="sm"
+                            min={0}
+                            max={5000}
+                            value={editingRates.rates.MID}
+                            onChange={(_, value) => handleRateChange(GameRole.MID, value)}
+                          >
+                            <NumberInputField />
+                            <NumberInputStepper>
+                              <NumberIncrementStepper />
+                              <NumberDecrementStepper />
+                            </NumberInputStepper>
+                          </NumberInput>
+                        ) : (
+                          <Text 
+                            fontWeight="bold"
+                            color={player.mainRole === GameRole.MID ? 'blue.600' : 'inherit'}
+                          >
+                            {player.rates.MID}
+                          </Text>
+                        )}
+                      </Td>
+                      {/* ADCレート */}
+                      <Td borderColor={borderColor} isNumeric>
+                        {isEditingRates ? (
+                          <NumberInput
+                            size="sm"
+                            min={0}
+                            max={5000}
+                            value={editingRates.rates.ADC}
+                            onChange={(_, value) => handleRateChange(GameRole.ADC, value)}
+                          >
+                            <NumberInputField />
+                            <NumberInputStepper>
+                              <NumberIncrementStepper />
+                              <NumberDecrementStepper />
+                            </NumberInputStepper>
+                          </NumberInput>
+                        ) : (
+                          <Text 
+                            fontWeight="bold"
+                            color={player.mainRole === GameRole.ADC ? 'blue.600' : 'inherit'}
+                          >
+                            {player.rates.ADC}
+                          </Text>
+                        )}
+                      </Td>
+                      {/* SUPレート */}
+                      <Td borderColor={borderColor} isNumeric>
+                        {isEditingRates ? (
+                          <NumberInput
+                            size="sm"
+                            min={0}
+                            max={5000}
+                            value={editingRates.rates.SUP}
+                            onChange={(_, value) => handleRateChange(GameRole.SUP, value)}
+                          >
+                            <NumberInputField />
+                            <NumberInputStepper>
+                              <NumberIncrementStepper />
+                              <NumberDecrementStepper />
+                            </NumberInputStepper>
+                          </NumberInput>
+                        ) : (
+                          <Text 
+                            fontWeight="bold"
+                            color={player.mainRole === GameRole.SUP ? 'blue.600' : 'inherit'}
+                          >
+                            {player.rates.SUP}
+                          </Text>
+                        )}
                       </Td>
                       <Td borderColor={borderColor}>
                         <HStack spacing={2} justify="flex-end">
@@ -467,6 +662,23 @@ export default function Players() {
                                 onClick={handleCancelTags}
                               />
                             </>
+                          ) : isEditingRates ? (
+                            <>
+                              <IconButton
+                                aria-label="Save rates"
+                                icon={<CheckIcon />}
+                                size="sm"
+                                colorScheme="green"
+                                onClick={() => handleSaveRates(player.id)}
+                              />
+                              <IconButton
+                                aria-label="Cancel rates"
+                                icon={<CloseIcon />}
+                                size="sm"
+                                colorScheme="red"
+                                onClick={handleCancelRates}
+                              />
+                            </>
                           ) : (
                             <>
                               <IconButton
@@ -483,6 +695,14 @@ export default function Players() {
                                 onClick={() => handleEditTagsClick(player)}
                               >
                                 タグ編集
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                colorScheme="green"
+                                onClick={() => handleEditRatesClick(player)}
+                              >
+                                レート編集
                               </Button>
                             </>
                           )}
