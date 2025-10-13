@@ -264,11 +264,13 @@ export default function TeamMaker() {
         const roleNames = problematicRoles.map(([role]) => role).join(', ')
         toast({
           title: 'チーム分けエラー',
-          description: `${roleNames}ロールを絶対にやりたくないプレイヤーが多すぎます。チーム分けができません。`,
+          description: `${roleNames}ロールを絶対にやりたくないプレイヤーが多すぎます。ロール手動選択モードでチーム分けを試してください。`,
           status: 'error',
-          duration: 5000,
+          duration: 8000,
           isClosable: true,
         })
+        // ロール選択モードを手動に切り替え
+        setRoleSelectionMode('manual')
         return
       }
 
