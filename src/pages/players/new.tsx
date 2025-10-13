@@ -20,6 +20,9 @@ import {
   HStack,
   InputGroup,
   InputRightElement,
+  Checkbox,
+  Wrap,
+  WrapItem,
 } from '@chakra-ui/react'
 import { collection, addDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -28,12 +31,14 @@ import { useRouter } from 'next/router'
 import Layout from '@/components/Layout'
 import Card from '@/components/Card'
 
+// 利用可能なタグオプション
+const AVAILABLE_TAGS = ['249', 'SHIFT', 'きらくに']
+
 export default function NewPlayer() {
   const [name, setName] = useState('')
   const [mainRole, setMainRole] = useState<GameRole>(GameRole.TOP)
   const [mainRank, setMainRank] = useState<Rank>('UNRANKED')
-  const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const toast = useToast()
   const router = useRouter()
 
@@ -49,34 +54,22 @@ export default function NewPlayer() {
     return { mainRate, subRate }
   }
 
-  // タグを追加
-  const addTag = () => {
-    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
-      setTags([...tags, tagInput.trim()])
-      setTagInput('')
-    }
-  }
-
-  // タグを削除
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove))
-  }
-
-  // Enterキーでタグを追加
-  const handleTagInputKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addTag()
-    }
+  // タグの選択/解除
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim() || !mainRole || !mainRank) {
+    if (!name.trim() || !mainRole || !mainRank || selectedTags.length === 0) {
       toast({
         title: 'エラー',
-        description: '名前とメインロールを入力してください',
+        description: '名前、メインロール、タグを入力してください',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -85,7 +78,7 @@ export default function NewPlayer() {
     }
 
     // 確認ダイアログを表示
-    if (!window.confirm(`以下の内容で登録しますか？\n\n名前: ${name}\nメインロール: ${mainRole}\nタグ: ${tags.length > 0 ? tags.join(', ') : 'なし'}`)) {
+    if (!window.confirm(`以下の内容で登録しますか？\n\n名前: ${name}\nメインロール: ${mainRole}\nタグ: ${selectedTags.join(', ')}`)) {
       return
     }
 
@@ -100,7 +93,7 @@ export default function NewPlayer() {
           wins: 0,
           losses: 0,
         },
-        tags: tags.length > 0 ? tags : undefined,
+        tags: selectedTags,
       }
 
       await addDoc(collection(db, 'players'), player)
@@ -189,39 +182,31 @@ export default function NewPlayer() {
             </Card>
 
             <Card>
-              <FormControl>
+              <FormControl isRequired>
                 <FormLabel fontWeight="bold">タグ</FormLabel>
-                <InputGroup>
-                  <Input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={handleTagInputKeyPress}
-                    placeholder="タグを入力してEnterキーを押してください"
-                    size="lg"
-                    borderRadius="md"
-                  />
-                  <InputRightElement width="4.5rem">
-                    <Button h="1.75rem" size="sm" onClick={addTag}>
-                      追加
-                    </Button>
-                  </InputRightElement>
-                </InputGroup>
-                <HStack spacing={2} mt={3} flexWrap="wrap">
-                  {tags.map((tag, index) => (
-                    <Tag
-                      key={index}
-                      size="lg"
-                      borderRadius="full"
-                      variant="solid"
-                      colorScheme="blue"
-                    >
-                      <TagLabel>{tag}</TagLabel>
-                      <TagCloseButton onClick={() => removeTag(tag)} />
-                    </Tag>
+                <Wrap spacing={3} mt={2}>
+                  {AVAILABLE_TAGS.map((tag) => (
+                    <WrapItem key={tag}>
+                      <Checkbox
+                        isChecked={selectedTags.includes(tag)}
+                        onChange={() => handleTagToggle(tag)}
+                        colorScheme="blue"
+                        size="lg"
+                      >
+                        <Tag
+                          size="lg"
+                          borderRadius="full"
+                          variant={selectedTags.includes(tag) ? "solid" : "outline"}
+                          colorScheme="blue"
+                        >
+                          <TagLabel>{tag}</TagLabel>
+                        </Tag>
+                      </Checkbox>
+                    </WrapItem>
                   ))}
-                </HStack>
+                </Wrap>
                 <Text fontSize="sm" color="gray.600" mt={2}>
-                  よく遊ぶメンバーや特徴をタグで管理できます
+                  よく遊ぶメンバーや特徴をタグで管理できます（必須）
                 </Text>
               </FormControl>
             </Card>
@@ -232,7 +217,7 @@ export default function NewPlayer() {
               size="lg"
               w="full"
               boxShadow="md"
-              isDisabled={!name.trim() || !mainRole || !mainRank}
+              isDisabled={!name.trim() || !mainRole || !mainRank || selectedTags.length === 0}
               _hover={{ 
                 transform: 'translateY(-2px)',
                 boxShadow: 'lg'

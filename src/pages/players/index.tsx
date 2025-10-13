@@ -32,6 +32,7 @@ import {
   NumberInputStepper,
   NumberIncrementStepper,
   NumberDecrementStepper,
+  Checkbox,
 } from '@chakra-ui/react'
 import { SearchIcon, AddIcon, EditIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
@@ -41,6 +42,10 @@ import Layout from '@/components/Layout'
 import Card from '@/components/Card'
 import Link from 'next/link'
 import { runMigration } from '@/utils/migrateExistingPlayers'
+import { cleanupInvalidTags } from '@/utils/cleanupTags'
+
+// 利用可能なタグオプション
+const AVAILABLE_TAGS = ['249', 'SHIFT', 'きらくに']
 
 interface EditingState {
   id: string | null;
@@ -302,6 +307,35 @@ export default function Players() {
     }
   }
 
+  // 不要なタグをクリーンアップ
+  const handleCleanupTags = async () => {
+    if (!window.confirm('不要なタグ（sadas、アズカバン）を削除しますか？')) {
+      return
+    }
+
+    try {
+      const updatedCount = await cleanupInvalidTags()
+      toast({
+        title: 'クリーンアップ完了',
+        description: `${updatedCount}人のプレイヤーのタグを更新しました`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+      // プレイヤーリストを再読み込み
+      fetchPlayers()
+    } catch (error) {
+      console.error('Cleanup error:', error)
+      toast({
+        title: 'クリーンアップエラー',
+        description: 'タグのクリーンアップ中にエラーが発生しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
+
   // 利用可能なタグを取得
   const availableTags = Array.from(
     new Set(
@@ -338,6 +372,18 @@ export default function Players() {
               }}
             >
               レート移行
+            </Button>
+            <Button
+              colorScheme="red"
+              size="md"
+              onClick={handleCleanupTags}
+              boxShadow="md"
+              _hover={{ 
+                transform: 'translateY(-2px)',
+                boxShadow: 'lg'
+              }}
+            >
+              タグクリーンアップ
             </Button>
             <Link href="/players/new" passHref>
               <Button
@@ -472,34 +518,32 @@ export default function Players() {
                       <Td borderColor={borderColor}>
                         {isEditingTags ? (
                           <VStack spacing={2} align="stretch">
-                            <HStack>
-                              <Input
-                                value={tagInput}
-                                onChange={(e) => setTagInput(e.target.value)}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    addTag(player.id)
-                                  }
-                                }}
-                                placeholder="タグを入力"
-                                size="sm"
-                              />
-                              <Button size="sm" onClick={() => addTag(player.id)}>
-                                追加
-                              </Button>
-                            </HStack>
-                            <Wrap spacing={1}>
-                              {editingTags.tags.map((tag, index) => (
-                                <WrapItem key={index}>
-                                  <Tag
-                                    size="sm"
-                                    variant="solid"
+                            <Wrap spacing={2}>
+                              {AVAILABLE_TAGS.map((tag) => (
+                                <WrapItem key={tag}>
+                                  <Checkbox
+                                    isChecked={editingTags.tags.includes(tag)}
+                                    onChange={() => {
+                                      if (editingTags.tags.includes(tag)) {
+                                        removeTag(player.id, tag)
+                                      } else {
+                                        setEditingTags({
+                                          ...editingTags,
+                                          tags: [...editingTags.tags, tag]
+                                        })
+                                      }
+                                    }}
                                     colorScheme="blue"
+                                    size="sm"
                                   >
-                                    <TagLabel>{tag}</TagLabel>
-                                    <TagCloseButton onClick={() => removeTag(player.id, tag)} />
-                                  </Tag>
+                                    <Tag
+                                      size="sm"
+                                      variant={editingTags.tags.includes(tag) ? "solid" : "outline"}
+                                      colorScheme="blue"
+                                    >
+                                      <TagLabel>{tag}</TagLabel>
+                                    </Tag>
+                                  </Checkbox>
                                 </WrapItem>
                               ))}
                             </Wrap>
