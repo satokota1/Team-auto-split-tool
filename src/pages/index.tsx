@@ -94,22 +94,6 @@ export default function Home() {
           </Card>
         </SimpleGrid>
 
-        <Card size="lg" variant="elevated">
-          <CardHeader>
-            <Heading size="lg">レート変動ランキング</Heading>
-          </CardHeader>
-          <CardBody display="flex" flexDirection="column">
-            <Text mb={4} fontSize="lg">
-              プレイヤーのレート変動をグラフで確認できます。
-              ロール別の成績や、最近の試合での変動を表示します。
-            </Text>
-            <NextLink href="/rating-history" passHref>
-              <Button as={Link} colorScheme="teal" size="lg" width="100%">
-                レート変動ランキングへ
-              </Button>
-            </NextLink>
-          </CardBody>
-        </Card>
       </VStack>
     </Container>
   )

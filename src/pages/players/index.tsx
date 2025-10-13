@@ -45,8 +45,8 @@ import {
   FormControl,
   FormLabel,
 } from '@chakra-ui/react'
-import { SearchIcon, AddIcon, EditIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
+import { SearchIcon, AddIcon, EditIcon, CheckIcon, CloseIcon, DeleteIcon } from '@chakra-ui/icons'
+import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Player, GameRole, RANK_RATES, Rank } from '@/types'
 import Layout from '@/components/Layout'
@@ -284,6 +284,38 @@ export default function Players() {
   const handleCancelRatesModal = () => {
     onRateModalClose()
     setRateModalPlayer(null)
+  }
+
+  // プレイヤー削除関数
+  const handleDeletePlayer = async (playerId: string, playerName: string) => {
+    if (!window.confirm(`プレイヤー「${playerName}」を削除しますか？\n\nこの操作は取り消せません。`)) {
+      return
+    }
+
+    try {
+      const playerRef = doc(db, 'players', playerId)
+      await deleteDoc(playerRef)
+
+      // プレイヤーリストから削除
+      setPlayers(players.filter(p => p.id !== playerId))
+
+      toast({
+        title: '削除完了',
+        description: `プレイヤー「${playerName}」を削除しました`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error) {
+      console.error('Error deleting player:', error)
+      toast({
+        title: 'エラー',
+        description: 'プレイヤーの削除に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
   }
 
 
@@ -797,6 +829,14 @@ export default function Players() {
                               >
                                 絶対にやりたくないロール編集
                               </Button>
+                              <IconButton
+                                aria-label="Delete player"
+                                icon={<DeleteIcon />}
+                                size="sm"
+                                colorScheme="red"
+                                variant="outline"
+                                onClick={() => handleDeletePlayer(player.id, player.name)}
+                              />
                             </>
                           )}
                         </HStack>
