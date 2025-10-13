@@ -131,9 +131,10 @@ export default function TeamMaker() {
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (teams && !isMatchResultRegistered) {
+        const message = '試合結果を登録していませんが、よろしいですか？'
         e.preventDefault()
-        e.returnValue = '試合結果を登録していませんが、よろしいですか？'
-        return '試合結果を登録していませんが、よろしいですか？'
+        e.returnValue = message
+        return message
       }
     }
 
