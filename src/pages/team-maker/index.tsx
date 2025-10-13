@@ -109,6 +109,7 @@ export default function TeamMaker() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [roleSelectionMode, setRoleSelectionMode] = useState<RoleSelectionMode>('auto')
   const [isRoleAssignmentMode, setIsRoleAssignmentMode] = useState(false)
+  const [isMatchResultRegistered, setIsMatchResultRegistered] = useState(false)
   const teamsRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
   const { isOpen, onOpen, onClose } = useDisclosure()
@@ -129,7 +130,7 @@ export default function TeamMaker() {
   // ページを離れようとした際の確認ダイアログ
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (teams) {
+      if (teams && !isMatchResultRegistered) {
         e.preventDefault()
         e.returnValue = '試合結果を登録していませんが、よろしいですか？'
         return '試合結果を登録していませんが、よろしいですか？'
@@ -141,7 +142,7 @@ export default function TeamMaker() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
-  }, [teams])
+  }, [teams, isMatchResultRegistered])
 
   // 利用可能なタグを取得
   const availableTags = Array.from(
@@ -248,6 +249,7 @@ export default function TeamMaker() {
 
       setTeams({ blue: blueTeam, red: redTeam })
       setIsRoleAssignmentMode(true)
+      setIsMatchResultRegistered(false) // 新しいチーム作成時は試合結果未登録状態にリセット
       onOpen() // モーダルを開く
       toast({
         title: 'チーム作成完了',
@@ -362,6 +364,7 @@ export default function TeamMaker() {
       if (bestTeams) {
         setTeams(bestTeams)
         setIsRoleAssignmentMode(true) // 自動選択でもロール変更可能にする
+        setIsMatchResultRegistered(false) // 新しいチーム作成時は試合結果未登録状態にリセット
         onOpen() // モーダルを開く
         toast({
           title: 'チーム作成完了',
@@ -438,6 +441,7 @@ export default function TeamMaker() {
 
       // チーム構成は保持し、選択されたプレイヤーはリセット
       setSelectedPlayers([])
+      setIsMatchResultRegistered(true)
       // setTeams(null) を削除してチーム構成を保持
     } catch (error) {
       console.error('Error saving match:', error)
@@ -814,7 +818,9 @@ export default function TeamMaker() {
                     leftIcon={<RepeatIcon />}
                     colorScheme="green"
                     onClick={() => {
-                      if (window.confirm('試合結果を登録していませんが、チームを再生成しますか？')) {
+                      if (!isMatchResultRegistered && window.confirm('試合結果を登録していませんが、チームを再生成しますか？')) {
+                        createTeams()
+                      } else if (isMatchResultRegistered) {
                         createTeams()
                       }
                     }}
