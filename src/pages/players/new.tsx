@@ -304,7 +304,7 @@ export default function NewPlayer() {
               size="lg"
               w="full"
               boxShadow="md"
-              isDisabled={!name.trim() || !mainRole || !mainRank || selectedTags.length === 0}
+              isDisabled={!summonerName.trim() || !mainRole || !mainRank || selectedTags.length === 0}
               _hover={{ 
                 transform: 'translateY(-2px)',
                 boxShadow: 'lg'
