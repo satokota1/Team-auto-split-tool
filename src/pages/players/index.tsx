@@ -33,11 +33,22 @@ import {
   NumberIncrementStepper,
   NumberDecrementStepper,
   Checkbox,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  SimpleGrid,
+  FormControl,
+  FormLabel,
 } from '@chakra-ui/react'
 import { SearchIcon, AddIcon, EditIcon, CheckIcon, CloseIcon } from '@chakra-ui/icons'
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { Player, GameRole } from '@/types'
+import { Player, GameRole, RANK_RATES, Rank } from '@/types'
 import Layout from '@/components/Layout'
 import Card from '@/components/Card'
 import Link from 'next/link'
@@ -52,11 +63,6 @@ interface EditingState {
   newName: string;
 }
 
-interface EditingRates {
-  id: string;
-  mainRate: number;
-  subRate: number;
-}
 
 interface EditingUnwantedRoles {
   id: string;
@@ -69,9 +75,12 @@ export default function Players() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [editing, setEditing] = useState<{ id: string; newName: string } | null>(null)
   const [editingTags, setEditingTags] = useState<{ id: string; tags: string[] } | null>(null)
-  const [editingRates, setEditingRates] = useState<EditingRates | null>(null)
   const [editingUnwantedRoles, setEditingUnwantedRoles] = useState<EditingUnwantedRoles | null>(null)
   const [tagInput, setTagInput] = useState('')
+  const [rateModalPlayer, setRateModalPlayer] = useState<(Player & { id: string }) | null>(null)
+  const [tempMainRate, setTempMainRate] = useState(0)
+  const [tempSubRate, setTempSubRate] = useState(0)
+  const { isOpen: isRateModalOpen, onOpen: onRateModalOpen, onClose: onRateModalClose } = useDisclosure()
   const borderColor = useColorModeValue('gray.200', 'gray.700')
   const toast = useToast()
 
@@ -227,31 +236,32 @@ export default function Players() {
   }
 
   const handleEditRatesClick = (player: Player & { id: string }) => {
-    setEditingRates({
-      id: player.id,
-      mainRate: player.mainRate,
-      subRate: player.subRate
-    })
+    setRateModalPlayer(player)
+    setTempMainRate(player.mainRate)
+    setTempSubRate(player.subRate)
+    onRateModalOpen()
   }
 
-  const handleSaveRates = async (playerId: string) => {
-    if (!editingRates) return
+
+  const handleSaveRatesModal = async () => {
+    if (!rateModalPlayer) return
 
     try {
-      const playerRef = doc(db, 'players', playerId)
+      const playerRef = doc(db, 'players', rateModalPlayer.id)
       await updateDoc(playerRef, {
-        mainRate: editingRates.mainRate,
-        subRate: editingRates.subRate
+        mainRate: tempMainRate,
+        subRate: tempSubRate
       })
 
       // プレイヤーリストを更新
       setPlayers(players.map(player => 
-        player.id === playerId 
-          ? { ...player, mainRate: editingRates.mainRate, subRate: editingRates.subRate }
+        player.id === rateModalPlayer.id 
+          ? { ...player, mainRate: tempMainRate, subRate: tempSubRate }
           : player
       ))
 
-      setEditingRates(null)
+      onRateModalClose()
+      setRateModalPlayer(null)
       toast({
         title: '成功',
         description: 'レートを更新しました',
@@ -271,27 +281,11 @@ export default function Players() {
     }
   }
 
-  const handleCancelRates = () => {
-    setEditingRates(null)
+  const handleCancelRatesModal = () => {
+    onRateModalClose()
+    setRateModalPlayer(null)
   }
 
-  const handleMainRateChange = (value: number) => {
-    if (editingRates) {
-      setEditingRates({
-        ...editingRates,
-        mainRate: value
-      })
-    }
-  }
-
-  const handleSubRateChange = (value: number) => {
-    if (editingRates) {
-      setEditingRates({
-        ...editingRates,
-        subRate: value
-      })
-    }
-  }
 
   // 絶対にやりたくないロール編集を開始
   const handleEditUnwantedRolesClick = (player: Player & { id: string }) => {
@@ -559,7 +553,6 @@ export default function Players() {
 
                   const isEditing = editing?.id === player.id
                   const isEditingTags = editingTags?.id === player.id
-                  const isEditingRates = editingRates?.id === player.id
                   const isEditingUnwantedRoles = editingUnwantedRoles?.id === player.id
 
                   return (
@@ -708,47 +701,15 @@ export default function Players() {
                       </Td>
                       {/* メインロールレート */}
                       <Td borderColor={borderColor} isNumeric>
-                        {isEditingRates ? (
-                          <NumberInput
-                            size="sm"
-                            min={0}
-                            max={5000}
-                            value={editingRates.mainRate}
-                            onChange={(_, value) => handleMainRateChange(value)}
-                          >
-                            <NumberInputField />
-                            <NumberInputStepper>
-                              <NumberIncrementStepper />
-                              <NumberDecrementStepper />
-                            </NumberInputStepper>
-                          </NumberInput>
-                        ) : (
-                          <Text fontWeight="bold" color="blue.600">
-                            {player.mainRate}
-                          </Text>
-                        )}
+                        <Text fontWeight="bold" color="blue.600">
+                          {player.mainRate}
+                        </Text>
                       </Td>
                       {/* サブロールレート */}
                       <Td borderColor={borderColor} isNumeric>
-                        {isEditingRates ? (
-                          <NumberInput
-                            size="sm"
-                            min={0}
-                            max={5000}
-                            value={editingRates.subRate}
-                            onChange={(_, value) => handleSubRateChange(value)}
-                          >
-                            <NumberInputField />
-                            <NumberInputStepper>
-                              <NumberIncrementStepper />
-                              <NumberDecrementStepper />
-                            </NumberInputStepper>
-                          </NumberInput>
-                        ) : (
-                          <Text fontWeight="bold" color="gray.600">
-                            {player.subRate}
-                          </Text>
-                        )}
+                        <Text fontWeight="bold" color="gray.600">
+                          {player.subRate}
+                        </Text>
                       </Td>
                       <Td borderColor={borderColor}>
                         <HStack spacing={2} justify="flex-end">
@@ -784,23 +745,6 @@ export default function Players() {
                                 size="sm"
                                 colorScheme="red"
                                 onClick={handleCancelTags}
-                              />
-                            </>
-                          ) : isEditingRates ? (
-                            <>
-                              <IconButton
-                                aria-label="Save rates"
-                                icon={<CheckIcon />}
-                                size="sm"
-                                colorScheme="green"
-                                onClick={() => handleSaveRates(player.id)}
-                              />
-                              <IconButton
-                                aria-label="Cancel rates"
-                                icon={<CloseIcon />}
-                                size="sm"
-                                colorScheme="red"
-                                onClick={handleCancelRates}
                               />
                             </>
                           ) : isEditingUnwantedRoles ? (
@@ -868,6 +812,84 @@ export default function Players() {
         <Text fontSize="sm" color="gray.600" textAlign="center">
           ※プレイヤーの削除が必要な場合は、Discordで「こにー」までご連絡ください。
         </Text>
+
+        {/* レート編集モーダル */}
+        <Modal isOpen={isRateModalOpen} onClose={handleCancelRatesModal} size="xl">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>
+              {rateModalPlayer?.name} のレート編集
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={6} align="stretch">
+                {/* 現在のレート表示 */}
+                <Box p={4} bg="gray.50" borderRadius="md">
+                  <Text fontSize="sm" fontWeight="bold" mb={2}>現在のレート</Text>
+                  <HStack spacing={4}>
+                    <Text>メインロール: <Text as="span" fontWeight="bold" color="blue.600">{rateModalPlayer?.mainRate}</Text></Text>
+                    <Text>サブロール: <Text as="span" fontWeight="bold" color="gray.600">{rateModalPlayer?.subRate}</Text></Text>
+                  </HStack>
+                </Box>
+
+                {/* レート入力フォーム */}
+                <SimpleGrid columns={2} spacing={4}>
+                  <FormControl>
+                    <FormLabel>メインロールレート</FormLabel>
+                    <NumberInput
+                      value={tempMainRate}
+                      onChange={(_, value) => setTempMainRate(value)}
+                      min={0}
+                      max={5000}
+                    >
+                      <NumberInputField />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>サブロールレート</FormLabel>
+                    <NumberInput
+                      value={tempSubRate}
+                      onChange={(_, value) => setTempSubRate(value)}
+                      min={0}
+                      max={5000}
+                    >
+                      <NumberInputField />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                </SimpleGrid>
+
+                {/* ランク参考表 */}
+                <Box p={4} bg="blue.50" borderRadius="md">
+                  <Text fontSize="sm" fontWeight="bold" mb={3}>ランク参考表</Text>
+                  <SimpleGrid columns={2} spacing={2}>
+                    {Object.entries(RANK_RATES).map(([rank, rates]) => (
+                      <Box key={rank} p={2} bg="white" borderRadius="sm" border="1px solid" borderColor="gray.200">
+                        <Text fontSize="xs" fontWeight="bold" color="blue.600">{rank}</Text>
+                        <Text fontSize="xs">メイン: {rates.main} | サブ: {rates.sub}</Text>
+                      </Box>
+                    ))}
+                  </SimpleGrid>
+                </Box>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={handleCancelRatesModal}>
+                キャンセル
+              </Button>
+              <Button colorScheme="blue" onClick={handleSaveRatesModal}>
+                保存
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </VStack>
     </Layout>
   )

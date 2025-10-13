@@ -43,11 +43,19 @@ import {
   RadioGroup,
   Flex,
   Spacer,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from '@chakra-ui/react'
 import { SearchIcon, DeleteIcon, RepeatIcon } from '@chakra-ui/icons'
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { Player, Role, GameRole, Match } from '../../types'
+import { Player, Role, GameRole, Match, Rank, RANK_RATES } from '../../types'
 import Layout from '../../components/Layout'
 
 interface SelectedPlayer {
@@ -56,6 +64,39 @@ interface SelectedPlayer {
 }
 
 type RoleSelectionMode = 'auto' | 'manual'
+
+// レートからランクを判定する関数
+const getRankFromRate = (rate: number): Rank => {
+  if (rate >= 3000) return 'CHALLENGER'
+  if (rate >= 2700) return 'GRANDMASTER'
+  if (rate >= 2500) return 'MASTER'
+  if (rate >= 2200) return 'DIAMOND'
+  if (rate >= 2000) return 'EMERALD'
+  if (rate >= 1900) return 'PLATINUM'
+  if (rate >= 1700) return 'GOLD'
+  if (rate >= 1500) return 'SILVER'
+  if (rate >= 1300) return 'BRONZE'
+  if (rate >= 600) return 'IRON'
+  return 'UNRANKED'
+}
+
+// ランクの色を取得する関数
+const getRankColor = (rank: Rank): string => {
+  const colors: { [key in Rank]: string } = {
+    UNRANKED: 'gray',
+    IRON: 'gray',
+    BRONZE: 'orange',
+    SILVER: 'gray',
+    GOLD: 'yellow',
+    PLATINUM: 'green',
+    EMERALD: 'teal',
+    DIAMOND: 'blue',
+    MASTER: 'purple',
+    GRANDMASTER: 'pink',
+    CHALLENGER: 'red'
+  }
+  return colors[rank] || 'gray'
+}
 
 export default function TeamMaker() {
   const [players, setPlayers] = useState<Player[]>([])
@@ -70,6 +111,7 @@ export default function TeamMaker() {
   const [isRoleAssignmentMode, setIsRoleAssignmentMode] = useState(false)
   const teamsRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
+  const { isOpen, onOpen, onClose } = useDisclosure()
 
   useEffect(() => {
     const fetchPlayers = async () => {
@@ -189,6 +231,7 @@ export default function TeamMaker() {
 
       setTeams({ blue: blueTeam, red: redTeam })
       setIsRoleAssignmentMode(true)
+      onOpen() // モーダルを開く
       toast({
         title: 'チーム作成完了',
         description: 'チーム分けが完了しました。ロールを手動で設定してください。',
@@ -300,6 +343,7 @@ export default function TeamMaker() {
       if (bestTeams) {
         setTeams(bestTeams)
         setIsRoleAssignmentMode(true) // 自動選択でもロール変更可能にする
+        onOpen() // モーダルを開く
         toast({
           title: 'チーム作成完了',
           description: 'チーム分けが完了しました。ロールを手動で調整できます。',
@@ -308,11 +352,6 @@ export default function TeamMaker() {
           isClosable: true,
         })
       }
-    }
-
-    // チームエリアにスクロール
-    if (teamsRef.current) {
-      teamsRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }
 
@@ -567,9 +606,20 @@ export default function TeamMaker() {
                                   {player.mainRole}
                                 </Badge>
                               </HStack>
-                              <Text fontSize="sm" color="gray.600">
-                                メイン: {player.mainRate} | サブ: {player.subRate}
-                              </Text>
+                              <HStack spacing={2} wrap="wrap">
+                                <Text fontSize="sm" color="gray.600">
+                                  メイン: {player.mainRate}
+                                </Text>
+                                <Badge colorScheme={getRankColor(getRankFromRate(player.mainRate))} size="sm">
+                                  {getRankFromRate(player.mainRate)}
+                                </Badge>
+                                <Text fontSize="sm" color="gray.600">
+                                  サブ: {player.subRate}
+                                </Text>
+                                <Badge colorScheme={getRankColor(getRankFromRate(player.subRate))} size="sm">
+                                  {getRankFromRate(player.subRate)}
+                                </Badge>
+                              </HStack>
                               {player.tags && player.tags.length > 0 && (
                                 <Wrap spacing={1}>
                                   {player.tags.map((tag, index) => (
@@ -606,7 +656,23 @@ export default function TeamMaker() {
                     <CardBody p={3}>
                       <VStack spacing={3} align="stretch">
                         <HStack justify="space-between">
-                          <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
+                          <VStack align="start" spacing={1}>
+                            <Text fontWeight="bold">{selectedPlayer.player.name}</Text>
+                            <HStack spacing={2} wrap="wrap">
+                              <Text fontSize="xs" color="gray.600">
+                                メイン: {selectedPlayer.player.mainRate}
+                              </Text>
+                              <Badge colorScheme={getRankColor(getRankFromRate(selectedPlayer.player.mainRate))} size="xs">
+                                {getRankFromRate(selectedPlayer.player.mainRate)}
+                              </Badge>
+                              <Text fontSize="xs" color="gray.600">
+                                サブ: {selectedPlayer.player.subRate}
+                              </Text>
+                              <Badge colorScheme={getRankColor(getRankFromRate(selectedPlayer.player.subRate))} size="xs">
+                                {getRankFromRate(selectedPlayer.player.subRate)}
+                              </Badge>
+                            </HStack>
+                          </VStack>
                           <IconButton
                             aria-label="Remove player"
                             icon={<DeleteIcon />}
@@ -672,173 +738,6 @@ export default function TeamMaker() {
           </Card>
         </SimpleGrid>
 
-        {teams && (
-          <Box ref={teamsRef}>
-            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
-              {[
-                { team: teams.blue, name: 'チーム1', color: 'blue' },
-                { team: teams.red, name: 'チーム2', color: 'red' },
-              ].map(({ team, name, color }) => (
-                <Card key={name}>
-                  <VStack align="stretch" spacing={4}>
-                    <Heading size="md" color={`${color}.600`}>
-                      {name}
-                    </Heading>
-                    <Text fontSize="sm" color="gray.600" mb={2}>
-                      {isRoleAssignmentMode 
-                        ? 'プレイヤーをクリックするとロールを変更できます。ドラッグでチーム間移動も可能です。'
-                        : 'プレイヤーをクリックすると相手チームのプレイヤーと入れ替えることができます'
-                      }
-                    </Text>
-                    <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
-                      {team.map((player, teamIndex) => (
-                        <Card
-                          key={player.player.id}
-                          bg={useColorModeValue('gray.50', 'gray.700')}
-                          borderWidth="1px"
-                        >
-                          <Menu>
-                            <MenuButton as={Box} cursor="pointer" w="100%" h="100%">
-                              <VStack align="stretch" spacing={1}>
-                                <Text fontWeight="bold">{player.player.name}</Text>
-                                <Badge
-                                  colorScheme={getRoleColor(player.role)}
-                                >
-                                  {player.role}
-                                </Badge>
-                                <Text fontSize="sm" color="gray.500">
-                                  レート: {player.role === player.player.mainRole ? player.player.mainRate : player.player.subRate}
-                                </Text>
-                              </VStack>
-                            </MenuButton>
-                            <MenuList>
-                              {isRoleAssignmentMode && (
-                                <MenuGroup title="ロール変更">
-                                  {Object.values(GameRole).map((role) => (
-                                    <MenuItem
-                                      key={role}
-                                      onClick={() => {
-                                        const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
-                                        handleRoleChange(currentTeamKey, teamIndex, role)
-                                      }}
-                                      isDisabled={player.role === role}
-                                    >
-                                      {role}
-                                    </MenuItem>
-                                  ))}
-                                </MenuGroup>
-                              )}
-                              <MenuGroup title={`${name === 'チーム1' ? 'チーム2' : 'チーム1'}と交代`}>
-                                {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
-                                  <MenuItem
-                                    key={otherPlayer.player.id}
-                                    onClick={() => {
-                                      const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
-                                      const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
-                                      handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, otherIndex)
-                                    }}
-                                  >
-                                    {otherPlayer.player.name} ({otherPlayer.role})
-                                    {' '}
-                                    {(() => {
-                                      const currentRate = player.role === player.player.mainRole ? 
-                                        player.player.mainRate : 
-                                        player.player.subRate
-                                      const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
-                                        otherPlayer.player.mainRate : 
-                                        otherPlayer.player.subRate
-                                      const diff = otherRate - currentRate
-                                      return (
-                                        <Text as="span" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
-                                          ({diff > 0 ? '+' : ''}{diff})
-                                        </Text>
-                                      )
-                                    })()}
-                                  </MenuItem>
-                                ))}
-                              </MenuGroup>
-                            </MenuList>
-                          </Menu>
-                        </Card>
-                      ))}
-                    </SimpleGrid>
-                    <Divider />
-                    <HStack justify="space-between">
-                      <Text fontWeight="bold">平均レート:</Text>
-                      <Text>{calculateAverageRate(team)}</Text>
-                    </HStack>
-                  </VStack>
-                </Card>
-              ))}
-            </SimpleGrid>
-
-            <Card>
-              <VStack spacing={4} align="stretch">
-                <HStack justify="space-between" align="center">
-                  <Heading size="md" color="gray.700">
-                    試合結果
-                  </Heading>
-                  <HStack spacing={2}>
-                    {isRoleAssignmentMode && (
-                      <Button
-                        colorScheme="orange"
-                        onClick={() => setIsRoleAssignmentMode(false)}
-                        size="sm"
-                      >
-                        ロール確定
-                      </Button>
-                    )}
-                    <Button
-                      leftIcon={<RepeatIcon />}
-                      colorScheme="green"
-                      onClick={createTeams}
-                      size="sm"
-                    >
-                      チーム再生成
-                    </Button>
-                    <Button
-                      leftIcon={<RepeatIcon />}
-                      colorScheme="purple"
-                      onClick={handleRematch}
-                      size="sm"
-                    >
-                      同じチームで再戦
-                    </Button>
-                  </HStack>
-                </HStack>
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                  <Button
-                    colorScheme="blue"
-                    onClick={() => handleMatchResult('BLUE')}
-                    size="lg"
-                    width="100%"
-                  >
-                    チーム1の勝利
-                  </Button>
-                  <Button
-                    colorScheme="red"
-                    onClick={() => handleMatchResult('RED')}
-                    size="lg"
-                    width="100%"
-                  >
-                    チーム2の勝利
-                  </Button>
-                </SimpleGrid>
-                <Button
-                  colorScheme="purple"
-                  as="a"
-                  href="https://draftlol.dawe.gg/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  size="lg"
-                  width="100%"
-                >
-                  ドラフトツール
-                </Button>
-              </VStack>
-            </Card>
-          </Box>
-        )}
 
         {/* フッター追従メニュー */}
         <Box
@@ -849,17 +748,17 @@ export default function TeamMaker() {
           bg="white"
           borderTop="1px solid"
           borderColor="gray.200"
-          p={4}
+          p={3}
           zIndex={1000}
           boxShadow="0 -2px 10px rgba(0,0,0,0.1)"
         >
           <Container maxW="container.xl">
             <Flex 
               align="center" 
-              gap={4}
+              gap={3}
               direction={{ base: 'column', md: 'row' }}
             >
-              <VStack spacing={2} align={{ base: 'center', md: 'start' }}>
+              <VStack spacing={1} align={{ base: 'center', md: 'start' }}>
                 <Text fontSize="sm" fontWeight="bold" color="gray.700">
                   選択されたプレイヤー: {selectedPlayers.length}/10人
                 </Text>
@@ -867,29 +766,230 @@ export default function TeamMaker() {
                   value={roleSelectionMode}
                   onChange={(value) => setRoleSelectionMode(value as RoleSelectionMode)}
                 >
-                  <HStack spacing={4} wrap="wrap" justify={{ base: 'center', md: 'start' }}>
+                  <HStack spacing={3} wrap="wrap" justify={{ base: 'center', md: 'start' }}>
                     <Radio value="auto" size="sm">
-                      <Text fontSize="sm">ロール自動選択</Text>
+                      <Text fontSize="xs">ロール自動選択</Text>
                     </Radio>
                     <Radio value="manual" size="sm">
-                      <Text fontSize="sm">ロール手動選択</Text>
+                      <Text fontSize="xs">ロール手動選択</Text>
                     </Radio>
                   </HStack>
                 </RadioGroup>
               </VStack>
               <Spacer display={{ base: 'none', md: 'block' }} />
-              <Button
-                colorScheme="blue"
-                onClick={createTeams}
-                isDisabled={selectedPlayers.length < 10}
-                size="lg"
-                minW={{ base: '100%', md: '200px' }}
-              >
-                チーム作成
-              </Button>
+              <HStack spacing={2}>
+                {teams && (
+                  <Button
+                    colorScheme="purple"
+                    onClick={onOpen}
+                    size="md"
+                    variant="outline"
+                  >
+                    チーム表示
+                  </Button>
+                )}
+                <Button
+                  colorScheme="blue"
+                  onClick={createTeams}
+                  isDisabled={selectedPlayers.length < 10}
+                  size="md"
+                  minW={{ base: '100%', md: '180px' }}
+                >
+                  チーム作成
+                </Button>
+              </HStack>
             </Flex>
           </Container>
         </Box>
+
+        {/* チーム表示モーダル */}
+        <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
+          <ModalOverlay />
+          <ModalContent maxW="90vw" maxH="90vh">
+            <ModalHeader>
+              <HStack justify="space-between" align="center">
+                <Text>チーム構成</Text>
+                <HStack spacing={2}>
+                  {isRoleAssignmentMode && (
+                    <Button
+                      colorScheme="orange"
+                      onClick={() => setIsRoleAssignmentMode(false)}
+                      size="sm"
+                    >
+                      ロール確定
+                    </Button>
+                  )}
+                  <Button
+                    leftIcon={<RepeatIcon />}
+                    colorScheme="green"
+                    onClick={createTeams}
+                    size="sm"
+                  >
+                    チーム再生成
+                  </Button>
+                  <Button
+                    leftIcon={<RepeatIcon />}
+                    colorScheme="purple"
+                    onClick={handleRematch}
+                    size="sm"
+                  >
+                    同じチームで再戦
+                  </Button>
+                </HStack>
+              </HStack>
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              {teams && (
+                <VStack spacing={6} align="stretch">
+                  <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+                    {[
+                      { team: teams.blue, name: 'チーム1', color: 'blue' },
+                      { team: teams.red, name: 'チーム2', color: 'red' },
+                    ].map(({ team, name, color }) => (
+                      <Card key={name}>
+                        <VStack align="stretch" spacing={4}>
+                          <Heading size="md" color={`${color}.600`}>
+                            {name}
+                          </Heading>
+                          <Text fontSize="sm" color="gray.600" mb={2}>
+                            {isRoleAssignmentMode 
+                              ? 'プレイヤーをクリックするとロールを変更できます。ドラッグでチーム間移動も可能です。'
+                              : 'プレイヤーをクリックすると相手チームのプレイヤーと入れ替えることができます'
+                            }
+                          </Text>
+                          <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
+                            {team.map((player, teamIndex) => (
+                              <Card
+                                key={player.player.id}
+                                bg={useColorModeValue('gray.50', 'gray.700')}
+                                borderWidth="1px"
+                              >
+                                <Menu>
+                                  <MenuButton as={Box} cursor="pointer" w="100%" h="100%">
+                                    <VStack align="stretch" spacing={1}>
+                                      <Text fontWeight="bold">{player.player.name}</Text>
+                                      <Badge
+                                        colorScheme={getRoleColor(player.role)}
+                                      >
+                                        {player.role}
+                                      </Badge>
+                                      <VStack spacing={1} align="stretch">
+                                        <Text fontSize="sm" color="gray.500">
+                                          レート: {player.role === player.player.mainRole ? player.player.mainRate : player.player.subRate}
+                                        </Text>
+                                        <Badge 
+                                          colorScheme={getRankColor(getRankFromRate(player.role === player.player.mainRole ? player.player.mainRate : player.player.subRate))} 
+                                          size="sm"
+                                          alignSelf="center"
+                                        >
+                                          {getRankFromRate(player.role === player.player.mainRole ? player.player.mainRate : player.player.subRate)}
+                                        </Badge>
+                                      </VStack>
+                                    </VStack>
+                                  </MenuButton>
+                                  <MenuList>
+                                    {isRoleAssignmentMode && (
+                                      <MenuGroup title="ロール変更">
+                                        {Object.values(GameRole).map((role) => (
+                                          <MenuItem
+                                            key={role}
+                                            onClick={() => {
+                                              const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                              handleRoleChange(currentTeamKey, teamIndex, role)
+                                            }}
+                                            isDisabled={player.role === role}
+                                          >
+                                            {role}
+                                          </MenuItem>
+                                        ))}
+                                      </MenuGroup>
+                                    )}
+                                    <MenuGroup title={`${name === 'チーム1' ? 'チーム2' : 'チーム1'}と交代`}>
+                                      {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
+                                        <MenuItem
+                                          key={otherPlayer.player.id}
+                                          onClick={() => {
+                                            const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
+                                            const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                            handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, otherIndex)
+                                          }}
+                                        >
+                                          {otherPlayer.player.name} ({otherPlayer.role})
+                                          {' '}
+                                          {(() => {
+                                            const currentRate = player.role === player.player.mainRole ? 
+                                              player.player.mainRate : 
+                                              player.player.subRate
+                                            const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
+                                              otherPlayer.player.mainRate : 
+                                              otherPlayer.player.subRate
+                                            const diff = otherRate - currentRate
+                                            return (
+                                              <Text as="span" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
+                                                ({diff > 0 ? '+' : ''}{diff})
+                                              </Text>
+                                            )
+                                          })()}
+                                        </MenuItem>
+                                      ))}
+                                    </MenuGroup>
+                                  </MenuList>
+                                </Menu>
+                              </Card>
+                            ))}
+                          </SimpleGrid>
+                          <Divider />
+                          <HStack justify="space-between">
+                            <Text fontWeight="bold">平均レート:</Text>
+                            <Text>{calculateAverageRate(team)}</Text>
+                          </HStack>
+                        </VStack>
+                      </Card>
+                    ))}
+                  </SimpleGrid>
+
+                  <Card>
+                    <VStack spacing={4} align="stretch">
+                      <Heading size="md" color="gray.700" textAlign="center">
+                        試合結果
+                      </Heading>
+                      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                        <Button
+                          colorScheme="blue"
+                          onClick={() => handleMatchResult('BLUE')}
+                          size="lg"
+                          width="100%"
+                        >
+                          チーム1の勝利
+                        </Button>
+                        <Button
+                          colorScheme="red"
+                          onClick={() => handleMatchResult('RED')}
+                          size="lg"
+                          width="100%"
+                        >
+                          チーム2の勝利
+                        </Button>
+                      </SimpleGrid>
+                      <Button
+                        colorScheme="purple"
+                        as="a"
+                        href="https://draftlol.dawe.gg/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="lg"
+                        width="100%"
+                      >
+                        ドラフトツール
+                      </Button>
+                    </VStack>
+                  </Card>
+                </VStack>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Modal>
       </VStack>
     </Layout>
   )
