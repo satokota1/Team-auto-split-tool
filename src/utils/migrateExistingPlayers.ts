@@ -1,6 +1,7 @@
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { migratePlayerRates } from './migratePlayerRates'
+import { Player } from '@/types'
 
 // 既存プレイヤーのレートデータを移行する関数
 export async function migrateExistingPlayers() {
@@ -12,7 +13,7 @@ export async function migrateExistingPlayers() {
     const players = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }))
+    })) as (Player & { id: string })[]
 
     console.log(`${players.length}人のプレイヤーが見つかりました`)
 
@@ -43,7 +44,7 @@ export async function migrateExistingPlayers() {
     return { success: true, migratedCount: players.length }
   } catch (error) {
     console.error('移行中にエラーが発生しました:', error)
-    return { success: false, error: error.message }
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
 

@@ -115,8 +115,8 @@ export default function RatingHistory() {
 
   // 総合統計の計算
   const totalGames = players.reduce((sum, p) => sum + p.stats.wins + p.stats.losses, 0)
-  const avgRate = Math.round(players.reduce((sum, p) => sum + p.rates[p.mainRole], 0) / (players.length || 1))
-  const maxRate = Math.max(...players.map(p => p.rates[p.mainRole]))
+  const avgRate = Math.round(players.reduce((sum, p) => sum + p.mainRate, 0) / (players.length || 1))
+  const maxRate = Math.max(...players.map(p => p.mainRate))
 
   return (
     <Layout>
