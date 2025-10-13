@@ -520,52 +520,41 @@ export default function TeamMaker() {
 
                 {/* タグフィルター */}
                 {availableTags.length > 0 && (
-                  <Accordion allowToggle>
-                    <AccordionItem>
-                      <AccordionButton>
-                        <Box as="span" flex="1" textAlign="left">
-                          <Text fontSize="sm" fontWeight="bold">
-                            タグで絞り込み ({selectedTags.length}個選択中)
-                          </Text>
-                        </Box>
-                        <AccordionIcon />
-                      </AccordionButton>
-                      <AccordionPanel>
-                        <VStack spacing={3} align="stretch">
-                          <CheckboxGroup
-                            value={selectedTags}
-                            onChange={(values) => setSelectedTags(values as string[])}
-                          >
-                            <Wrap spacing={2}>
-                              {availableTags.map((tag) => (
-                                <WrapItem key={tag}>
-                                  <Checkbox value={tag} colorScheme="blue">
-                                    <Tag
-                                      size="md"
-                                      variant="outline"
-                                      colorScheme="blue"
-                                    >
-                                      <TagLabel>{tag}</TagLabel>
-                                    </Tag>
-                                  </Checkbox>
-                                </WrapItem>
-                              ))}
-                            </Wrap>
-                          </CheckboxGroup>
-                          {selectedTags.length > 0 && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              colorScheme="gray"
-                              onClick={() => setSelectedTags([])}
-                            >
-                              フィルターをクリア
-                            </Button>
-                          )}
-                        </VStack>
-                      </AccordionPanel>
-                    </AccordionItem>
-                  </Accordion>
+                  <VStack spacing={3} align="stretch">
+                    <Text fontSize="sm" fontWeight="bold">
+                      タグで絞り込み ({selectedTags.length}個選択中)
+                    </Text>
+                    <CheckboxGroup
+                      value={selectedTags}
+                      onChange={(values) => setSelectedTags(values as string[])}
+                    >
+                      <Wrap spacing={2}>
+                        {availableTags.map((tag) => (
+                          <WrapItem key={tag}>
+                            <Checkbox value={tag} colorScheme="blue">
+                              <Tag
+                                size="md"
+                                variant="outline"
+                                colorScheme="blue"
+                              >
+                                <TagLabel>{tag}</TagLabel>
+                              </Tag>
+                            </Checkbox>
+                          </WrapItem>
+                        ))}
+                      </Wrap>
+                    </CheckboxGroup>
+                    {selectedTags.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="gray"
+                        onClick={() => setSelectedTags([])}
+                      >
+                        フィルターをクリア
+                      </Button>
+                    )}
+                  </VStack>
                 )}
 
                 {/* プレイヤーリスト */}
@@ -831,8 +820,8 @@ export default function TeamMaker() {
                           </Heading>
                           <Text fontSize="sm" color="gray.600" mb={2}>
                             {isRoleAssignmentMode 
-                              ? 'プレイヤーをクリックするとロールを変更できます。'
-                              : 'プレイヤーをクリックすると相手チームのプレイヤーと入れ替えることができます'
+                              ? 'プレイヤーをクリックするとロールとチームを変更できます。'
+                              : 'プレイヤーをクリックするとロールとチームを変更できます。'
                             }
                           </Text>
                           <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
@@ -866,63 +855,71 @@ export default function TeamMaker() {
                                     </VStack>
                                   </MenuButton>
                                   <MenuList>
-                                    {isRoleAssignmentMode && (
-                                      <MenuGroup title="ロール変更">
-                                        {Object.values(GameRole).map((role) => (
-                                          <MenuItem
-                                            key={role}
-                                            onClick={() => {
-                                              const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
-                                              handleRoleChange(currentTeamKey, teamIndex, role)
-                                            }}
-                                            isDisabled={player.role === role}
-                                          >
-                                            {role}
-                                          </MenuItem>
-                                        ))}
-                                      </MenuGroup>
-                                    )}
-                                    <MenuGroup title={`${name === 'チーム1' ? 'チーム2' : 'チーム1'}と交代`}>
-                                      <Box p={2}>
-                                        <SimpleGrid columns={2} spacing={1}>
-                                          {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
-                                            <MenuItem
-                                              key={otherPlayer.player.id}
-                                              onClick={() => {
-                                                const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
-                                                const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
-                                                handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, otherIndex)
-                                              }}
-                                              minH="auto"
-                                              py={2}
-                                            >
-                                              <VStack align="start" spacing={0}>
-                                                <Text fontSize="sm" fontWeight="bold">
-                                                  {otherPlayer.player.name}
-                                                </Text>
-                                                <Text fontSize="xs" color="gray.500">
-                                                  {otherPlayer.role}
-                                                </Text>
-                                                {(() => {
-                                                  const currentRate = player.role === player.player.mainRole ? 
-                                                    player.player.mainRate : 
-                                                    player.player.subRate
-                                                  const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
-                                                    otherPlayer.player.mainRate : 
-                                                    otherPlayer.player.subRate
-                                                  const diff = otherRate - currentRate
-                                                  return (
-                                                    <Text fontSize="xs" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
-                                                      {diff > 0 ? '+' : ''}{diff}
-                                                    </Text>
-                                                  )
-                                                })()}
-                                              </VStack>
-                                            </MenuItem>
-                                          ))}
-                                        </SimpleGrid>
+                                    <HStack align="start" spacing={0}>
+                                      {isRoleAssignmentMode && (
+                                        <Box flex="1" borderRight="1px solid" borderColor="gray.200">
+                                          <MenuGroup title="ロール変更">
+                                            {Object.values(GameRole).map((role) => (
+                                              <MenuItem
+                                                key={role}
+                                                onClick={() => {
+                                                  const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                                  handleRoleChange(currentTeamKey, teamIndex, role)
+                                                }}
+                                                isDisabled={player.role === role}
+                                              >
+                                                {role}
+                                              </MenuItem>
+                                            ))}
+                                          </MenuGroup>
+                                        </Box>
+                                      )}
+                                      <Box flex="1">
+                                        <MenuGroup title={`${name === 'チーム1' ? 'チーム2' : 'チーム1'}と交代`}>
+                                          <Box p={2}>
+                                            <VStack spacing={1} align="stretch">
+                                              {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
+                                                <MenuItem
+                                                  key={otherPlayer.player.id}
+                                                  onClick={() => {
+                                                    const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
+                                                    const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                                    handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, otherIndex)
+                                                  }}
+                                                  minH="auto"
+                                                  py={2}
+                                                >
+                                                  <HStack justify="space-between" w="100%">
+                                                    <VStack align="start" spacing={0}>
+                                                      <Text fontSize="sm" fontWeight="bold">
+                                                        {otherPlayer.player.name}
+                                                      </Text>
+                                                      <Text fontSize="xs" color="gray.500">
+                                                        {otherPlayer.role}
+                                                      </Text>
+                                                    </VStack>
+                                                    {(() => {
+                                                      const currentRate = player.role === player.player.mainRole ? 
+                                                        player.player.mainRate : 
+                                                        player.player.subRate
+                                                      const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
+                                                        otherPlayer.player.mainRate : 
+                                                        otherPlayer.player.subRate
+                                                      const diff = otherRate - currentRate
+                                                      return (
+                                                        <Text fontSize="xs" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
+                                                          {diff > 0 ? '+' : ''}{diff}
+                                                        </Text>
+                                                      )
+                                                    })()}
+                                                  </HStack>
+                                                </MenuItem>
+                                              ))}
+                                            </VStack>
+                                          </Box>
+                                        </MenuGroup>
                                       </Box>
-                                    </MenuGroup>
+                                    </HStack>
                                   </MenuList>
                                 </Menu>
                               </Card>

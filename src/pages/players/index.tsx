@@ -52,8 +52,8 @@ import { Player, GameRole, RANK_RATES, Rank } from '@/types'
 import Layout from '@/components/Layout'
 import Card from '@/components/Card'
 import Link from 'next/link'
-import { runMigration } from '@/utils/migrateExistingPlayers'
 import { cleanupInvalidTags } from '@/utils/cleanupTags'
+import { updateSubRatesTo90Percent } from '@/utils/updateSubRates'
 
 // 利用可能なタグオプション
 const AVAILABLE_TAGS = ['249', 'SHIFT', 'きらくに']
@@ -81,6 +81,15 @@ export default function Players() {
   const [tempMainRate, setTempMainRate] = useState(0)
   const [tempSubRate, setTempSubRate] = useState(0)
   const { isOpen: isRateModalOpen, onOpen: onRateModalOpen, onClose: onRateModalClose } = useDisclosure()
+  
+  // 統合編集モーダルの状態
+  const [editModalPlayer, setEditModalPlayer] = useState<(Player & { id: string }) | null>(null)
+  const [tempEditName, setTempEditName] = useState('')
+  const [tempEditMainRate, setTempEditMainRate] = useState(0)
+  const [tempEditSubRate, setTempEditSubRate] = useState(0)
+  const [tempEditTags, setTempEditTags] = useState<string[]>([])
+  const [tempEditUnwantedRoles, setTempEditUnwantedRoles] = useState<GameRole[]>([])
+  const { isOpen: isEditModalOpen, onOpen: onEditModalOpen, onClose: onEditModalClose } = useDisclosure()
   const borderColor = useColorModeValue('gray.200', 'gray.700')
   const toast = useToast()
 
@@ -387,23 +396,37 @@ export default function Players() {
     }
   }
 
-  // 既存プレイヤーのレート移行
-  const handleMigration = async () => {
-    if (!window.confirm('既存プレイヤーのレートデータを移行しますか？\n\nこの操作は一度だけ実行してください。')) {
+
+  // サブロールを90%に更新
+  const handleUpdateSubRates = async () => {
+    if (!window.confirm('全てのプレイヤーのサブロールを90%に更新しますか？\n\nこの操作は既存のサブロールを上書きします。')) {
       return
     }
 
     try {
-      await runMigration()
-      // プレイヤーリストを再取得
-      const querySnapshot = await getDocs(collection(db, 'players'))
-      const playersData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as (Player & { id: string })[]
-      setPlayers(playersData)
+      const result = await updateSubRatesTo90Percent()
+      if (result.success) {
+        toast({
+          title: 'サブロール更新完了',
+          description: `${result.updatedCount}人のプレイヤーのサブロールを更新しました`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        })
+        // プレイヤーリストを再取得
+        fetchPlayers()
+      } else {
+        throw new Error(result.error || 'Unknown error')
+      }
     } catch (error) {
-      console.error('移行エラー:', error)
+      console.error('サブロール更新エラー:', error)
+      toast({
+        title: 'エラー',
+        description: 'サブロールの更新に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
     }
   }
 
@@ -436,6 +459,77 @@ export default function Players() {
     }
   }
 
+  // 統合編集モーダルを開く
+  const handleEditPlayerClick = (player: Player & { id: string }) => {
+    setEditModalPlayer(player)
+    setTempEditName(player.name)
+    setTempEditMainRate(player.mainRate)
+    setTempEditSubRate(player.subRate)
+    setTempEditTags(player.tags || [])
+    setTempEditUnwantedRoles(player.unwantedRoles || [])
+    onEditModalOpen()
+  }
+
+  // 統合編集モーダルを保存
+  const handleSaveEditModal = async () => {
+    if (!editModalPlayer) return
+
+    try {
+      const playerRef = doc(db, 'players', editModalPlayer.id)
+      await updateDoc(playerRef, {
+        name: tempEditName,
+        mainRate: tempEditMainRate,
+        subRate: tempEditSubRate,
+        tags: tempEditTags,
+        unwantedRoles: tempEditUnwantedRoles
+      })
+
+      // ローカルのプレイヤーリストを更新
+      setPlayers(players.map(player => 
+        player.id === editModalPlayer.id 
+          ? { 
+              ...player, 
+              name: tempEditName,
+              mainRate: tempEditMainRate,
+              subRate: tempEditSubRate,
+              tags: tempEditTags,
+              unwantedRoles: tempEditUnwantedRoles
+            }
+          : player
+      ))
+
+      toast({
+        title: '更新完了',
+        description: 'プレイヤー情報を更新しました',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+
+      onEditModalClose()
+    } catch (error) {
+      console.error('Update error:', error)
+      toast({
+        title: '更新エラー',
+        description: 'プレイヤー情報の更新に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
+
+  // 統合編集モーダルをキャンセル
+  const handleCancelEditModal = () => {
+    setEditModalPlayer(null)
+    setTempEditName('')
+    setTempEditMainRate(0)
+    setTempEditSubRate(0)
+    setTempEditTags([])
+    setTempEditUnwantedRoles([])
+    onEditModalClose()
+  }
+
   // 利用可能なタグを取得
   const availableTags = Array.from(
     new Set(
@@ -462,16 +556,16 @@ export default function Players() {
           </Heading>
           <HStack spacing={3}>
             <Button
-              colorScheme="orange"
+              colorScheme="green"
               size="md"
-              onClick={handleMigration}
+              onClick={handleUpdateSubRates}
               boxShadow="md"
               _hover={{ 
                 transform: 'translateY(-2px)',
                 boxShadow: 'lg'
               }}
             >
-              レート移行
+              サブロール90%更新
             </Button>
             <Button
               colorScheme="red"
@@ -564,7 +658,7 @@ export default function Players() {
           </Box>
 
           <Box overflowX="auto">
-            <Table variant="simple" size="sm">
+            <Table variant="simple" size="sm" minW="1200px">
               <Thead bg="gray.50">
                 <Tr>
                   <Th borderColor={borderColor}>名前</Th>
@@ -798,36 +892,13 @@ export default function Players() {
                             </>
                           ) : (
                             <>
-                              <IconButton
-                                aria-label="Edit name"
-                                icon={<EditIcon />}
+                              <Button
                                 size="sm"
                                 colorScheme="blue"
-                                onClick={() => handleEditClick(player)}
-                              />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                colorScheme="blue"
-                                onClick={() => handleEditTagsClick(player)}
+                                onClick={() => handleEditPlayerClick(player)}
+                                leftIcon={<EditIcon />}
                               >
-                                タグ編集
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                colorScheme="green"
-                                onClick={() => handleEditRatesClick(player)}
-                              >
-                                レート編集
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                colorScheme="red"
-                                onClick={() => handleEditUnwantedRolesClick(player)}
-                              >
-                                絶対にやりたくないロール編集
+                                編集
                               </Button>
                               <IconButton
                                 aria-label="Delete player"
@@ -925,6 +996,139 @@ export default function Players() {
                 キャンセル
               </Button>
               <Button colorScheme="blue" onClick={handleSaveRatesModal}>
+                保存
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* 統合編集モーダル */}
+        <Modal isOpen={isEditModalOpen} onClose={handleCancelEditModal} size="2xl">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>
+              {editModalPlayer?.name} の編集
+            </ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={6} align="stretch">
+                {/* 名前編集 */}
+                <FormControl>
+                  <FormLabel>プレイヤー名</FormLabel>
+                  <Input
+                    value={tempEditName}
+                    onChange={(e) => setTempEditName(e.target.value)}
+                    placeholder="プレイヤー名を入力"
+                  />
+                </FormControl>
+
+                {/* レート編集 */}
+                <Box>
+                  <Text fontSize="lg" fontWeight="bold" mb={3}>レート設定</Text>
+                  <SimpleGrid columns={2} spacing={4}>
+                    <FormControl>
+                      <FormLabel>メインロールレート</FormLabel>
+                      <NumberInput
+                        value={tempEditMainRate}
+                        onChange={(_, value) => setTempEditMainRate(value)}
+                        min={0}
+                        max={5000}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>サブロールレート</FormLabel>
+                      <NumberInput
+                        value={tempEditSubRate}
+                        onChange={(_, value) => setTempEditSubRate(value)}
+                        min={0}
+                        max={5000}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    </FormControl>
+                  </SimpleGrid>
+                </Box>
+
+                {/* タグ編集 */}
+                <Box>
+                  <Text fontSize="lg" fontWeight="bold" mb={3}>タグ設定</Text>
+                  <VStack spacing={3} align="stretch">
+                    <Wrap spacing={2}>
+                      {AVAILABLE_TAGS.map((tag) => (
+                        <WrapItem key={tag}>
+                          <Checkbox
+                            isChecked={tempEditTags.includes(tag)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTempEditTags([...tempEditTags, tag])
+                              } else {
+                                setTempEditTags(tempEditTags.filter(t => t !== tag))
+                              }
+                            }}
+                            colorScheme="blue"
+                          >
+                            <Tag
+                              size="md"
+                              variant={tempEditTags.includes(tag) ? "solid" : "outline"}
+                              colorScheme="blue"
+                            >
+                              <TagLabel>{tag}</TagLabel>
+                            </Tag>
+                          </Checkbox>
+                        </WrapItem>
+                      ))}
+                    </Wrap>
+                  </VStack>
+                </Box>
+
+                {/* 絶対にやりたくないロール編集 */}
+                <Box>
+                  <Text fontSize="lg" fontWeight="bold" mb={3}>絶対にやりたくないロール</Text>
+                  <VStack spacing={3} align="stretch">
+                    <Wrap spacing={2}>
+                      {Object.values(GameRole).map((role) => (
+                        <WrapItem key={role}>
+                          <Checkbox
+                            isChecked={tempEditUnwantedRoles.includes(role)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTempEditUnwantedRoles([...tempEditUnwantedRoles, role])
+                              } else {
+                                setTempEditUnwantedRoles(tempEditUnwantedRoles.filter(r => r !== role))
+                              }
+                            }}
+                            colorScheme="red"
+                          >
+                            <Tag
+                              size="md"
+                              variant={tempEditUnwantedRoles.includes(role) ? "solid" : "outline"}
+                              colorScheme="red"
+                            >
+                              <TagLabel>{role}</TagLabel>
+                            </Tag>
+                          </Checkbox>
+                        </WrapItem>
+                      ))}
+                    </Wrap>
+                  </VStack>
+                </Box>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={handleCancelEditModal}>
+                キャンセル
+              </Button>
+              <Button colorScheme="blue" onClick={handleSaveEditModal}>
                 保存
               </Button>
             </ModalFooter>
