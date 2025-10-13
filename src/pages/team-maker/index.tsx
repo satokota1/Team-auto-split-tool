@@ -126,6 +126,23 @@ export default function TeamMaker() {
     fetchPlayers()
   }, [])
 
+  // ページを離れようとした際の確認ダイアログ
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (teams) {
+        e.preventDefault()
+        e.returnValue = '試合結果を登録していませんが、よろしいですか？'
+        return '試合結果を登録していませんが、よろしいですか？'
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [teams])
+
   // 利用可能なタグを取得
   const availableTags = Array.from(
     new Set(
@@ -796,7 +813,11 @@ export default function TeamMaker() {
                   <Button
                     leftIcon={<RepeatIcon />}
                     colorScheme="green"
-                    onClick={createTeams}
+                    onClick={() => {
+                      if (window.confirm('試合結果を登録していませんが、チームを再生成しますか？')) {
+                        createTeams()
+                      }
+                    }}
                     size="sm"
                   >
                     チーム再生成
