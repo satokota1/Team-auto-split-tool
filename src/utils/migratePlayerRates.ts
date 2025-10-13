@@ -5,8 +5,8 @@ export function migratePlayerRates(oldPlayer: any): Player {
   // 既存のratesオブジェクトからメインロールのレートを取得
   const mainRate = oldPlayer.rates[oldPlayer.mainRole] || 0
   
-  // 他のロールのレートを計算（メインロールの80%）
-  const subRate = Math.round(mainRate * 0.8)
+  // 他のロールのレートを計算（メインロールの90%）
+  const subRate = Math.round(mainRate * 0.9)
   
   return {
     id: oldPlayer.id,

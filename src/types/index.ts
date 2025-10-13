@@ -16,17 +16,17 @@ export interface RankRate {
 }
 
 export const RANK_RATES: { [key in Rank]: RankRate } = {
-  UNRANKED: { main: 500, sub: 400 },
-  IRON: { main: 600, sub: 480 },
-  BRONZE: { main: 1300, sub: 1040 },
-  SILVER: { main: 1500, sub: 1200 },
-  GOLD: { main: 1700, sub: 1360 },
-  PLATINUM: { main: 1900, sub: 1520 },
-  EMERALD: { main: 2000, sub: 1600 },
-  DIAMOND: { main: 2200, sub: 1760 },
-  MASTER: { main: 2500, sub: 2000 },
-  GRANDMASTER: { main: 2700, sub: 2160 },
-  CHALLENGER: { main: 3000, sub: 2400 }
+  UNRANKED: { main: 500, sub: 450 },
+  IRON: { main: 600, sub: 540 },
+  BRONZE: { main: 1300, sub: 1170 },
+  SILVER: { main: 1500, sub: 1350 },
+  GOLD: { main: 1700, sub: 1530 },
+  PLATINUM: { main: 1900, sub: 1710 },
+  EMERALD: { main: 2000, sub: 1800 },
+  DIAMOND: { main: 2200, sub: 1980 },
+  MASTER: { main: 2500, sub: 2250 },
+  GRANDMASTER: { main: 2700, sub: 2430 },
+  CHALLENGER: { main: 3000, sub: 2700 }
 }
 
 export interface Player {
