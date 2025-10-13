@@ -248,31 +248,23 @@ export default function NewPlayer() {
                 <Wrap spacing={3} mt={2}>
                   {AVAILABLE_TAGS.map((tag) => (
                     <WrapItem key={tag}>
-                      <Box
-                        as="label"
-                        cursor="pointer"
-                        display="flex"
-                        alignItems="center"
-                        _hover={{ opacity: 0.8 }}
-                        w="fit-content"
-                      >
+                      <HStack spacing={2}>
                         <Checkbox
                           isChecked={selectedTags.includes(tag)}
                           onChange={() => handleTagToggle(tag)}
                           colorScheme="blue"
                           size="lg"
-                          mr={2}
                         />
                         <Tag
                           size="lg"
                           borderRadius="full"
                           variant={selectedTags.includes(tag) ? "solid" : "outline"}
                           colorScheme="blue"
-                          pointerEvents="none"
+                          cursor="default"
                         >
                           <TagLabel>{tag}</TagLabel>
                         </Tag>
-                      </Box>
+                      </HStack>
                     </WrapItem>
                   ))}
                 </Wrap>
@@ -288,31 +280,23 @@ export default function NewPlayer() {
                 <Wrap spacing={3} mt={2}>
                   {Object.values(GameRole).map((role) => (
                     <WrapItem key={role}>
-                      <Box
-                        as="label"
-                        cursor="pointer"
-                        display="flex"
-                        alignItems="center"
-                        _hover={{ opacity: 0.8 }}
-                        w="fit-content"
-                      >
+                      <HStack spacing={2}>
                         <Checkbox
                           isChecked={unwantedRoles.includes(role)}
                           onChange={() => handleUnwantedRoleToggle(role)}
                           colorScheme="red"
                           size="lg"
-                          mr={2}
                         />
                         <Tag
                           size="lg"
                           borderRadius="full"
                           variant={unwantedRoles.includes(role) ? "solid" : "outline"}
                           colorScheme="red"
-                          pointerEvents="none"
+                          cursor="default"
                         >
                           <TagLabel>{role}</TagLabel>
                         </Tag>
-                      </Box>
+                      </HStack>
                     </WrapItem>
                   ))}
                 </Wrap>
