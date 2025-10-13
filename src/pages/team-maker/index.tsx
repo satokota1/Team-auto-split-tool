@@ -859,18 +859,48 @@ export default function TeamMaker() {
                                       {isRoleAssignmentMode && (
                                         <Box flex="1" borderRight="1px solid" borderColor="gray.200">
                                           <MenuGroup title="ロール変更">
-                                            {Object.values(GameRole).map((role) => (
-                                              <MenuItem
-                                                key={role}
-                                                onClick={() => {
-                                                  const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
-                                                  handleRoleChange(currentTeamKey, teamIndex, role)
-                                                }}
-                                                isDisabled={player.role === role}
-                                              >
-                                                {role}
-                                              </MenuItem>
-                                            ))}
+                                            <Box p={2}>
+                                              <VStack spacing={1} align="stretch">
+                                                {Object.values(GameRole).map((role) => {
+                                                  const currentRate = player.role === player.player.mainRole ? 
+                                                    player.player.mainRate : 
+                                                    player.player.subRate
+                                                  const newRate = role === player.player.mainRole ? 
+                                                    player.player.mainRate : 
+                                                    player.player.subRate
+                                                  const diff = newRate - currentRate
+                                                  
+                                                  return (
+                                                    <MenuItem
+                                                      key={role}
+                                                      onClick={() => {
+                                                        const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                                        handleRoleChange(currentTeamKey, teamIndex, role)
+                                                      }}
+                                                      isDisabled={player.role === role}
+                                                      minH="auto"
+                                                      py={2}
+                                                    >
+                                                      <HStack justify="space-between" w="100%">
+                                                        <VStack align="start" spacing={0}>
+                                                          <Text fontSize="sm" fontWeight="bold">
+                                                            {role}
+                                                          </Text>
+                                                          <Text fontSize="xs" color="gray.500">
+                                                            レート: {newRate}
+                                                          </Text>
+                                                        </VStack>
+                                                        {diff !== 0 && (
+                                                          <Text fontSize="xs" color={diff > 0 ? 'green.500' : 'red.500'}>
+                                                            {diff > 0 ? '+' : ''}{diff}
+                                                          </Text>
+                                                        )}
+                                                      </HStack>
+                                                    </MenuItem>
+                                                  )
+                                                })}
+                                              </VStack>
+                                            </Box>
                                           </MenuGroup>
                                         </Box>
                                       )}
