@@ -52,7 +52,6 @@ import { Player, GameRole, RANK_RATES, Rank } from '@/types'
 import Layout from '@/components/Layout'
 import Card from '@/components/Card'
 import Link from 'next/link'
-import { cleanupInvalidTags } from '@/utils/cleanupTags'
 
 // 利用可能なタグオプション
 const AVAILABLE_TAGS = ['249', 'SHIFT', 'きらくに']
@@ -398,34 +397,6 @@ export default function Players() {
 
 
 
-  // 不要なタグをクリーンアップ
-  const handleCleanupTags = async () => {
-    if (!window.confirm('不要なタグ（sadas、アズカバン）を削除しますか？')) {
-      return
-    }
-
-    try {
-      const updatedCount = await cleanupInvalidTags()
-      toast({
-        title: 'クリーンアップ完了',
-        description: `${updatedCount}人のプレイヤーのタグを更新しました`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      })
-      // プレイヤーリストを再読み込み
-      fetchPlayers()
-    } catch (error) {
-      console.error('Cleanup error:', error)
-      toast({
-        title: 'クリーンアップエラー',
-        description: 'タグのクリーンアップ中にエラーが発生しました',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-    }
-  }
 
   // 統合編集モーダルを開く
   const handleEditPlayerClick = (player: Player & { id: string }) => {
@@ -523,18 +494,6 @@ export default function Players() {
             『プレイヤー』一覧
           </Heading>
           <HStack spacing={3}>
-            <Button
-              colorScheme="red"
-              size="md"
-              onClick={handleCleanupTags}
-              boxShadow="md"
-              _hover={{ 
-                transform: 'translateY(-2px)',
-                boxShadow: 'lg'
-              }}
-            >
-              タグクリーンアップ
-            </Button>
             <Link href="/players/new" passHref>
               <Button
                 as="a"
