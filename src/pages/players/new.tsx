@@ -248,23 +248,20 @@ export default function NewPlayer() {
                 <Wrap spacing={3} mt={2}>
                   {AVAILABLE_TAGS.map((tag) => (
                     <WrapItem key={tag}>
-                      <HStack spacing={2}>
-                        <Checkbox
-                          isChecked={selectedTags.includes(tag)}
-                          onChange={() => handleTagToggle(tag)}
-                          colorScheme="blue"
-                          size="lg"
-                        />
-                        <Tag
-                          size="lg"
-                          borderRadius="full"
-                          variant={selectedTags.includes(tag) ? "solid" : "outline"}
-                          colorScheme="blue"
-                          cursor="default"
-                        >
-                          <TagLabel>{tag}</TagLabel>
-                        </Tag>
-                      </HStack>
+                      <Button
+                        size="lg"
+                        variant={selectedTags.includes(tag) ? "solid" : "outline"}
+                        colorScheme="blue"
+                        onClick={() => handleTagToggle(tag)}
+                        borderRadius="full"
+                        _hover={{
+                          transform: "scale(1.05)",
+                          boxShadow: "md"
+                        }}
+                        transition="all 0.2s"
+                      >
+                        {tag}
+                      </Button>
                     </WrapItem>
                   ))}
                 </Wrap>
@@ -280,23 +277,20 @@ export default function NewPlayer() {
                 <Wrap spacing={3} mt={2}>
                   {Object.values(GameRole).map((role) => (
                     <WrapItem key={role}>
-                      <HStack spacing={2}>
-                        <Checkbox
-                          isChecked={unwantedRoles.includes(role)}
-                          onChange={() => handleUnwantedRoleToggle(role)}
-                          colorScheme="red"
-                          size="lg"
-                        />
-                        <Tag
-                          size="lg"
-                          borderRadius="full"
-                          variant={unwantedRoles.includes(role) ? "solid" : "outline"}
-                          colorScheme="red"
-                          cursor="default"
-                        >
-                          <TagLabel>{role}</TagLabel>
-                        </Tag>
-                      </HStack>
+                      <Button
+                        size="lg"
+                        variant={unwantedRoles.includes(role) ? "solid" : "outline"}
+                        colorScheme="red"
+                        onClick={() => handleUnwantedRoleToggle(role)}
+                        borderRadius="full"
+                        _hover={{
+                          transform: "scale(1.05)",
+                          boxShadow: "md"
+                        }}
+                        transition="all 0.2s"
+                      >
+                        {role}
+                      </Button>
                     </WrapItem>
                   ))}
                 </Wrap>
