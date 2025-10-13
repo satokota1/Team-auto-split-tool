@@ -53,7 +53,6 @@ import Layout from '@/components/Layout'
 import Card from '@/components/Card'
 import Link from 'next/link'
 import { cleanupInvalidTags } from '@/utils/cleanupTags'
-import { updateSubRatesTo90Percent } from '@/utils/updateSubRates'
 
 // 利用可能なタグオプション
 const AVAILABLE_TAGS = ['249', 'SHIFT', 'きらくに']
@@ -398,38 +397,6 @@ export default function Players() {
   }
 
 
-  // サブロールを90%に更新
-  const handleUpdateSubRates = async () => {
-    if (!window.confirm('全てのプレイヤーのサブロールを90%に更新しますか？\n\nこの操作は既存のサブロールを上書きします。')) {
-      return
-    }
-
-    try {
-      const result = await updateSubRatesTo90Percent()
-      if (result.success) {
-        toast({
-          title: 'サブロール更新完了',
-          description: `${result.updatedCount}人のプレイヤーのサブロールを更新しました`,
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        })
-        // プレイヤーリストを再取得
-        fetchPlayers()
-      } else {
-        throw new Error(result.error || 'Unknown error')
-      }
-    } catch (error) {
-      console.error('サブロール更新エラー:', error)
-      toast({
-        title: 'エラー',
-        description: 'サブロールの更新に失敗しました',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-    }
-  }
 
   // 不要なタグをクリーンアップ
   const handleCleanupTags = async () => {
@@ -556,18 +523,6 @@ export default function Players() {
             『プレイヤー』一覧
           </Heading>
           <HStack spacing={3}>
-            <Button
-              colorScheme="green"
-              size="md"
-              onClick={handleUpdateSubRates}
-              boxShadow="md"
-              _hover={{ 
-                transform: 'translateY(-2px)',
-                boxShadow: 'lg'
-              }}
-            >
-              サブロール90%更新
-            </Button>
             <Button
               colorScheme="red"
               size="md"

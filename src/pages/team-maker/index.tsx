@@ -806,15 +806,6 @@ export default function TeamMaker() {
               <HStack justify="space-between" align="center">
                 <Text>チーム構成</Text>
                 <HStack spacing={2}>
-                  {isRoleAssignmentMode && (
-                    <Button
-                      colorScheme="orange"
-                      onClick={() => setIsRoleAssignmentMode(false)}
-                      size="sm"
-                    >
-                      ロール確定
-                    </Button>
-                  )}
                   <Button
                     leftIcon={<RepeatIcon />}
                     colorScheme="green"
