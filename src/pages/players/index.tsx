@@ -90,6 +90,7 @@ export default function Players() {
   const [tempEditTags, setTempEditTags] = useState<string[]>([])
   const [tempEditUnwantedRoles, setTempEditUnwantedRoles] = useState<GameRole[]>([])
   const { isOpen: isEditModalOpen, onOpen: onEditModalOpen, onClose: onEditModalClose } = useDisclosure()
+  const [showRankReference, setShowRankReference] = useState(false)
   const borderColor = useColorModeValue('gray.200', 'gray.700')
   const toast = useToast()
 
@@ -1024,7 +1025,32 @@ export default function Players() {
 
                 {/* レート編集 */}
                 <Box>
-                  <Text fontSize="lg" fontWeight="bold" mb={3}>レート設定</Text>
+                  <HStack justify="space-between" align="center" mb={3}>
+                    <Text fontSize="lg" fontWeight="bold">レート設定</Text>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      colorScheme="blue"
+                      onClick={() => setShowRankReference(!showRankReference)}
+                    >
+                      {showRankReference ? 'ランク参考を閉じる' : 'ランク参考'}
+                    </Button>
+                  </HStack>
+                  
+                  {showRankReference && (
+                    <Box p={4} bg="blue.50" borderRadius="md" mb={4}>
+                      <Text fontSize="sm" fontWeight="bold" mb={3}>ランク参考表</Text>
+                      <SimpleGrid columns={2} spacing={2}>
+                        {Object.entries(RANK_RATES).map(([rank, rates]) => (
+                          <Box key={rank} p={2} bg="white" borderRadius="sm" border="1px solid" borderColor="gray.200">
+                            <Text fontSize="xs" fontWeight="bold" color="blue.600">{rank}</Text>
+                            <Text fontSize="xs">メイン: {rates.main} | サブ: {rates.sub}</Text>
+                          </Box>
+                        ))}
+                      </SimpleGrid>
+                    </Box>
+                  )}
+                  
                   <SimpleGrid columns={2} spacing={4}>
                     <FormControl>
                       <FormLabel>メインロールレート</FormLabel>
