@@ -599,7 +599,14 @@ export default function TeamMaker() {
                           <CardBody p={3}>
                             <VStack spacing={2} align="stretch">
                               <HStack justify="space-between">
-                                <Text fontWeight="bold">{player.nickname || player.name}</Text>
+                                <VStack align="start" spacing={0}>
+                                  <Text fontWeight="bold">{player.nickname || player.name}</Text>
+                                  {player.nickname && (
+                                    <Text fontSize="xs" color="gray.500">
+                                      {player.name}
+                                    </Text>
+                                  )}
+                                </VStack>
                                 <Badge colorScheme={getRoleColor(player.mainRole)}>
                                   {player.mainRole}
                                 </Badge>
@@ -656,6 +663,11 @@ export default function TeamMaker() {
                         <HStack justify="space-between">
                           <VStack align="start" spacing={1}>
                             <Text fontWeight="bold">{selectedPlayer.player.nickname || selectedPlayer.player.name}</Text>
+                            {selectedPlayer.player.nickname && (
+                              <Text fontSize="xs" color="gray.500">
+                                {selectedPlayer.player.name}
+                              </Text>
+                            )}
                             <HStack spacing={2} wrap="wrap">
                               <Text fontSize="xs" color="gray.600">
                                 メイン: {selectedPlayer.player.mainRate}
@@ -855,7 +867,14 @@ export default function TeamMaker() {
                                 <Menu>
                                   <MenuButton as={Box} cursor="pointer" w="100%" h="100%">
                                     <VStack align="stretch" spacing={1}>
-                                      <Text fontWeight="bold">{player.player.nickname || player.player.name}</Text>
+                                      <VStack align="start" spacing={0}>
+                                        <Text fontWeight="bold">{player.player.nickname || player.player.name}</Text>
+                                        {player.player.nickname && (
+                                          <Text fontSize="xs" color="gray.500">
+                                            {player.player.name}
+                                          </Text>
+                                        )}
+                                      </VStack>
                                       <Badge
                                         colorScheme={getRoleColor(player.role)}
                                       >
@@ -945,6 +964,11 @@ export default function TeamMaker() {
                                                       <Text fontSize="sm" fontWeight="bold">
                                                         {otherPlayer.player.nickname || otherPlayer.player.name}
                                                       </Text>
+                                                      {otherPlayer.player.nickname && (
+                                                        <Text fontSize="xs" color="gray.400">
+                                                          {otherPlayer.player.name}
+                                                        </Text>
+                                                      )}
                                                       <Text fontSize="xs" color="gray.500">
                                                         {otherPlayer.role}
                                                       </Text>
