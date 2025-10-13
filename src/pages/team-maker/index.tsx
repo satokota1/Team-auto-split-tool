@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   Box,
   Button,
@@ -39,6 +39,10 @@ import {
   AccordionButton,
   AccordionPanel,
   AccordionIcon,
+  Radio,
+  RadioGroup,
+  Flex,
+  Spacer,
 } from '@chakra-ui/react'
 import { SearchIcon, DeleteIcon, RepeatIcon } from '@chakra-ui/icons'
 import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
@@ -51,6 +55,8 @@ interface SelectedPlayer {
   unwantedRoles: GameRole[]
 }
 
+type RoleSelectionMode = 'auto' | 'manual'
+
 export default function TeamMaker() {
   const [players, setPlayers] = useState<Player[]>([])
   const [selectedPlayers, setSelectedPlayers] = useState<SelectedPlayer[]>([])
@@ -60,6 +66,9 @@ export default function TeamMaker() {
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [roleSelectionMode, setRoleSelectionMode] = useState<RoleSelectionMode>('auto')
+  const [isRoleAssignmentMode, setIsRoleAssignmentMode] = useState(false)
+  const teamsRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
 
   useEffect(() => {
@@ -151,114 +160,159 @@ export default function TeamMaker() {
       return
     }
 
-    // 絶対にやりたくないロールのチェック
-    const allUnwantedRoles = selectedPlayers.flatMap(p => p.unwantedRoles)
-    const roleCounts = {
-      [GameRole.TOP]: 0,
-      [GameRole.JUNGLE]: 0,
-      [GameRole.MID]: 0,
-      [GameRole.ADC]: 0,
-      [GameRole.SUP]: 0,
-    }
-    
-    // 各ロールの絶対にやりたくない人数をカウント
-    allUnwantedRoles.forEach(role => {
-      roleCounts[role]++
-    })
-    
-    // 絶対にやりたくないロールが多すぎる場合のチェック
-    const maxUnwantedPerRole = 8 // 10人中8人以上が絶対にやりたくない場合はチーム分け不可
-    const problematicRoles = Object.entries(roleCounts).filter(([role, count]) => count >= maxUnwantedPerRole)
-    
-    if (problematicRoles.length > 0) {
-      const roleNames = problematicRoles.map(([role]) => role).join(', ')
-      toast({
-        title: 'チーム分けエラー',
-        description: `${roleNames}ロールを絶対にやりたくないプレイヤーが多すぎます。チーム分けができません。`,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      })
-      return
-    }
+    if (roleSelectionMode === 'manual') {
+      // 手動ロール選択モード：メインロールのレートだけでチーム分け
+      const playersWithMainRates = selectedPlayers.map(sp => ({
+        ...sp,
+        rate: sp.player.mainRate
+      }))
 
-    // 各ロールのプレイヤーをグループ化
-    const roleGroups: { [key in GameRole]: SelectedPlayer[] } = {
-      [GameRole.TOP]: [],
-      [GameRole.JUNGLE]: [],
-      [GameRole.MID]: [],
-      [GameRole.ADC]: [],
-      [GameRole.SUP]: [],
-    }
+      // レート順にソート
+      playersWithMainRates.sort((a, b) => b.rate - a.rate)
 
-    // 各プレイヤーを絶対にやりたくないロール以外の全ロールに配置
-    selectedPlayers.forEach((player) => {
-      Object.values(GameRole).forEach((gameRole) => {
-        if (!player.unwantedRoles.includes(gameRole)) {
-          roleGroups[gameRole].push(player)
-        }
-      })
-    })
-
-    const roles: GameRole[] = [GameRole.TOP, GameRole.JUNGLE, GameRole.MID, GameRole.ADC, GameRole.SUP]
-    let bestTeams: { blue: { player: Player; role: GameRole }[]; red: { player: Player; role: GameRole }[] } | null = null
-    let minRateDifference = Infinity
-
-    // 複数回試行してベストな組み合わせを見つける
-    for (let attempt = 0; attempt < 100; attempt++) {
+      // 交互にチームに振り分け
       const blueTeam: { player: Player; role: GameRole }[] = []
       const redTeam: { player: Player; role: GameRole }[] = []
-      const assignedPlayers = new Set<string>()
 
-      // ランダムな順序でロールを処理
-      const shuffledRoles = [...roles].sort(() => Math.random() - 0.5)
-
-      // チーム作成関数
-      const createTeam = (team: typeof blueTeam) => {
-        shuffledRoles.forEach(role => {
-          if (team.length >= 5) return
-
-          const availablePlayers = roleGroups[role]
-            .filter(p => !assignedPlayers.has(p.player.id))
-            .sort(() => Math.random() - 0.5)
-
-          if (availablePlayers.length > 0) {
-            const player = availablePlayers[0]
-            team.push({ player: player.player, role })
-            assignedPlayers.add(player.player.id)
-          }
-        })
-      }
-
-      // ブルーチームを作成
-      createTeam(blueTeam)
-
-      // レッドチームを作成
-      createTeam(redTeam)
-
-      // チームが完成している場合のみ評価
-      if (blueTeam.length === 5 && redTeam.length === 5) {
-        const blueRating = calculateTeamRating(blueTeam)
-        const redRating = calculateTeamRating(redTeam)
-        const rateDifference = Math.abs(blueRating - redRating)
-
-        // より良い組み合わせの条件：チームレートの差が小さい
-        if (rateDifference < minRateDifference) {
-          minRateDifference = rateDifference
-          bestTeams = { blue: blueTeam, red: redTeam }
+      playersWithMainRates.forEach((playerData, index) => {
+        const teamMember = {
+          player: playerData.player,
+          role: GameRole.TOP // 仮のロール、後で手動で変更
         }
-      }
-    }
 
-    if (bestTeams) {
-      setTeams(bestTeams)
+        if (index % 2 === 0) {
+          blueTeam.push(teamMember)
+        } else {
+          redTeam.push(teamMember)
+        }
+      })
+
+      setTeams({ blue: blueTeam, red: redTeam })
+      setIsRoleAssignmentMode(true)
       toast({
         title: 'チーム作成完了',
-        description: 'チーム分けが完了しました',
+        description: 'チーム分けが完了しました。ロールを手動で設定してください。',
         status: 'success',
         duration: 5000,
         isClosable: true,
       })
+    } else {
+      // 自動ロール選択モード（既存のロジック）
+      // 絶対にやりたくないロールのチェック
+      const allUnwantedRoles = selectedPlayers.flatMap(p => p.unwantedRoles)
+      const roleCounts = {
+        [GameRole.TOP]: 0,
+        [GameRole.JUNGLE]: 0,
+        [GameRole.MID]: 0,
+        [GameRole.ADC]: 0,
+        [GameRole.SUP]: 0,
+      }
+      
+      // 各ロールの絶対にやりたくない人数をカウント
+      allUnwantedRoles.forEach(role => {
+        roleCounts[role]++
+      })
+      
+      // 絶対にやりたくないロールが多すぎる場合のチェック
+      const maxUnwantedPerRole = 8 // 10人中8人以上が絶対にやりたくない場合はチーム分け不可
+      const problematicRoles = Object.entries(roleCounts).filter(([role, count]) => count >= maxUnwantedPerRole)
+      
+      if (problematicRoles.length > 0) {
+        const roleNames = problematicRoles.map(([role]) => role).join(', ')
+        toast({
+          title: 'チーム分けエラー',
+          description: `${roleNames}ロールを絶対にやりたくないプレイヤーが多すぎます。チーム分けができません。`,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+        return
+      }
+
+      // 各ロールのプレイヤーをグループ化
+      const roleGroups: { [key in GameRole]: SelectedPlayer[] } = {
+        [GameRole.TOP]: [],
+        [GameRole.JUNGLE]: [],
+        [GameRole.MID]: [],
+        [GameRole.ADC]: [],
+        [GameRole.SUP]: [],
+      }
+
+      // 各プレイヤーを絶対にやりたくないロール以外の全ロールに配置
+      selectedPlayers.forEach((player) => {
+        Object.values(GameRole).forEach((gameRole) => {
+          if (!player.unwantedRoles.includes(gameRole)) {
+            roleGroups[gameRole].push(player)
+          }
+        })
+      })
+
+      const roles: GameRole[] = [GameRole.TOP, GameRole.JUNGLE, GameRole.MID, GameRole.ADC, GameRole.SUP]
+      let bestTeams: { blue: { player: Player; role: GameRole }[]; red: { player: Player; role: GameRole }[] } | null = null
+      let minRateDifference = Infinity
+
+      // 複数回試行してベストな組み合わせを見つける
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const blueTeam: { player: Player; role: GameRole }[] = []
+        const redTeam: { player: Player; role: GameRole }[] = []
+        const assignedPlayers = new Set<string>()
+
+        // ランダムな順序でロールを処理
+        const shuffledRoles = [...roles].sort(() => Math.random() - 0.5)
+
+        // チーム作成関数
+        const createTeam = (team: typeof blueTeam) => {
+          shuffledRoles.forEach(role => {
+            if (team.length >= 5) return
+
+            const availablePlayers = roleGroups[role]
+              .filter(p => !assignedPlayers.has(p.player.id))
+              .sort(() => Math.random() - 0.5)
+
+            if (availablePlayers.length > 0) {
+              const player = availablePlayers[0]
+              team.push({ player: player.player, role })
+              assignedPlayers.add(player.player.id)
+            }
+          })
+        }
+
+        // ブルーチームを作成
+        createTeam(blueTeam)
+
+        // レッドチームを作成
+        createTeam(redTeam)
+
+        // チームが完成している場合のみ評価
+        if (blueTeam.length === 5 && redTeam.length === 5) {
+          const blueRating = calculateTeamRating(blueTeam)
+          const redRating = calculateTeamRating(redTeam)
+          const rateDifference = Math.abs(blueRating - redRating)
+
+          // より良い組み合わせの条件：チームレートの差が小さい
+          if (rateDifference < minRateDifference) {
+            minRateDifference = rateDifference
+            bestTeams = { blue: blueTeam, red: redTeam }
+          }
+        }
+      }
+
+      if (bestTeams) {
+        setTeams(bestTeams)
+        setIsRoleAssignmentMode(true) // 自動選択でもロール変更可能にする
+        toast({
+          title: 'チーム作成完了',
+          description: 'チーム分けが完了しました。ロールを手動で調整できます。',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
+    }
+
+    // チームエリアにスクロール
+    if (teamsRef.current) {
+      teamsRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }
 
@@ -372,6 +426,22 @@ export default function TeamMaker() {
     setTeams(newTeams);
   };
 
+  const handleRoleChange = (team: 'blue' | 'red', playerIndex: number, newRole: GameRole) => {
+    if (!teams) return;
+
+    const newTeams = {
+      blue: [...teams.blue],
+      red: [...teams.red],
+    };
+
+    newTeams[team][playerIndex] = {
+      ...newTeams[team][playerIndex],
+      role: newRole
+    };
+
+    setTeams(newTeams);
+  };
+
   const getRoleColor = (role: GameRole) => {
     const colors: { [key in GameRole]: string } = {
       [GameRole.TOP]: 'red',
@@ -396,7 +466,7 @@ export default function TeamMaker() {
 
   return (
     <Layout>
-      <VStack spacing={6} align="stretch">
+      <VStack spacing={6} align="stretch" pb="120px">
         <Heading textAlign="center" color="blue.600" fontSize={{ base: '2xl', md: '3xl' }}>
           チームメーカー
         </Heading>
@@ -597,22 +667,13 @@ export default function TeamMaker() {
                     最大10人まで選択できます
                   </Text>
                 )}
-
-                <Button
-                  colorScheme="blue"
-                  onClick={createTeams}
-                  isDisabled={selectedPlayers.length < 10}
-                  size="lg"
-                >
-                  チーム作成
-                </Button>
               </VStack>
             </CardBody>
           </Card>
         </SimpleGrid>
 
         {teams && (
-          <>
+          <Box ref={teamsRef}>
             <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
               {[
                 { team: teams.blue, name: 'チーム1', color: 'blue' },
@@ -624,7 +685,10 @@ export default function TeamMaker() {
                       {name}
                     </Heading>
                     <Text fontSize="sm" color="gray.600" mb={2}>
-                      プレイヤーをクリックすると相手チームのプレイヤーと入れ替えることができます
+                      {isRoleAssignmentMode 
+                        ? 'プレイヤーをクリックするとロールを変更できます。ドラッグでチーム間移動も可能です。'
+                        : 'プレイヤーをクリックすると相手チームのプレイヤーと入れ替えることができます'
+                      }
                     </Text>
                     <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
                       {team.map((player, teamIndex) => (
@@ -648,6 +712,22 @@ export default function TeamMaker() {
                               </VStack>
                             </MenuButton>
                             <MenuList>
+                              {isRoleAssignmentMode && (
+                                <MenuGroup title="ロール変更">
+                                  {Object.values(GameRole).map((role) => (
+                                    <MenuItem
+                                      key={role}
+                                      onClick={() => {
+                                        const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                        handleRoleChange(currentTeamKey, teamIndex, role)
+                                      }}
+                                      isDisabled={player.role === role}
+                                    >
+                                      {role}
+                                    </MenuItem>
+                                  ))}
+                                </MenuGroup>
+                              )}
                               <MenuGroup title={`${name === 'チーム1' ? 'チーム2' : 'チーム1'}と交代`}>
                                 {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
                                   <MenuItem
@@ -699,6 +779,15 @@ export default function TeamMaker() {
                     試合結果
                   </Heading>
                   <HStack spacing={2}>
+                    {isRoleAssignmentMode && (
+                      <Button
+                        colorScheme="orange"
+                        onClick={() => setIsRoleAssignmentMode(false)}
+                        size="sm"
+                      >
+                        ロール確定
+                      </Button>
+                    )}
                     <Button
                       leftIcon={<RepeatIcon />}
                       colorScheme="green"
@@ -748,8 +837,59 @@ export default function TeamMaker() {
                 </Button>
               </VStack>
             </Card>
-          </>
+          </Box>
         )}
+
+        {/* フッター追従メニュー */}
+        <Box
+          position="fixed"
+          bottom="0"
+          left="0"
+          right="0"
+          bg="white"
+          borderTop="1px solid"
+          borderColor="gray.200"
+          p={4}
+          zIndex={1000}
+          boxShadow="0 -2px 10px rgba(0,0,0,0.1)"
+        >
+          <Container maxW="container.xl">
+            <Flex 
+              align="center" 
+              gap={4}
+              direction={{ base: 'column', md: 'row' }}
+            >
+              <VStack spacing={2} align={{ base: 'center', md: 'start' }}>
+                <Text fontSize="sm" fontWeight="bold" color="gray.700">
+                  選択されたプレイヤー: {selectedPlayers.length}/10人
+                </Text>
+                <RadioGroup
+                  value={roleSelectionMode}
+                  onChange={(value) => setRoleSelectionMode(value as RoleSelectionMode)}
+                >
+                  <HStack spacing={4} wrap="wrap" justify={{ base: 'center', md: 'start' }}>
+                    <Radio value="auto" size="sm">
+                      <Text fontSize="sm">ロール自動選択</Text>
+                    </Radio>
+                    <Radio value="manual" size="sm">
+                      <Text fontSize="sm">ロール手動選択</Text>
+                    </Radio>
+                  </HStack>
+                </RadioGroup>
+              </VStack>
+              <Spacer display={{ base: 'none', md: 'block' }} />
+              <Button
+                colorScheme="blue"
+                onClick={createTeams}
+                isDisabled={selectedPlayers.length < 10}
+                size="lg"
+                minW={{ base: '100%', md: '200px' }}
+              >
+                チーム作成
+              </Button>
+            </Flex>
+          </Container>
+        </Box>
       </VStack>
     </Layout>
   )
