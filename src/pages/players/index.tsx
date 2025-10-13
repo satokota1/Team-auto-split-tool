@@ -40,6 +40,7 @@ import { Player, GameRole } from '@/types'
 import Layout from '@/components/Layout'
 import Card from '@/components/Card'
 import Link from 'next/link'
+import { runMigration } from '@/utils/migrateExistingPlayers'
 
 interface EditingState {
   id: string | null;
@@ -48,7 +49,8 @@ interface EditingState {
 
 interface EditingRates {
   id: string;
-  rates: { [key in GameRole]: number };
+  mainRate: number;
+  subRate: number;
 }
 
 export default function Players() {
@@ -216,7 +218,8 @@ export default function Players() {
   const handleEditRatesClick = (player: Player & { id: string }) => {
     setEditingRates({
       id: player.id,
-      rates: { ...player.rates }
+      mainRate: player.mainRate,
+      subRate: player.subRate
     })
   }
 
@@ -226,13 +229,14 @@ export default function Players() {
     try {
       const playerRef = doc(db, 'players', playerId)
       await updateDoc(playerRef, {
-        rates: editingRates.rates
+        mainRate: editingRates.mainRate,
+        subRate: editingRates.subRate
       })
 
       // プレイヤーリストを更新
       setPlayers(players.map(player => 
         player.id === playerId 
-          ? { ...player, rates: editingRates.rates }
+          ? { ...player, mainRate: editingRates.mainRate, subRate: editingRates.subRate }
           : player
       ))
 
@@ -260,15 +264,41 @@ export default function Players() {
     setEditingRates(null)
   }
 
-  const handleRateChange = (role: GameRole, value: number) => {
+  const handleMainRateChange = (value: number) => {
     if (editingRates) {
       setEditingRates({
         ...editingRates,
-        rates: {
-          ...editingRates.rates,
-          [role]: value
-        }
+        mainRate: value
       })
+    }
+  }
+
+  const handleSubRateChange = (value: number) => {
+    if (editingRates) {
+      setEditingRates({
+        ...editingRates,
+        subRate: value
+      })
+    }
+  }
+
+  // 既存プレイヤーのレート移行
+  const handleMigration = async () => {
+    if (!window.confirm('既存プレイヤーのレートデータを移行しますか？\n\nこの操作は一度だけ実行してください。')) {
+      return
+    }
+
+    try {
+      await runMigration()
+      // プレイヤーリストを再取得
+      const querySnapshot = await getDocs(collection(db, 'players'))
+      const playersData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as (Player & { id: string })[]
+      setPlayers(playersData)
+    } catch (error) {
+      console.error('移行エラー:', error)
     }
   }
 
@@ -296,21 +326,35 @@ export default function Players() {
           <Heading color="blue.600" fontSize={{ base: '2xl', md: '3xl' }}>
             『プレイヤー』一覧
           </Heading>
-          <Link href="/players/new" passHref>
+          <HStack spacing={3}>
             <Button
-              as="a"
-              colorScheme="blue"
+              colorScheme="orange"
               size="md"
-              leftIcon={<AddIcon />}
+              onClick={handleMigration}
               boxShadow="md"
               _hover={{ 
                 transform: 'translateY(-2px)',
                 boxShadow: 'lg'
               }}
             >
-              新規登録
+              レート移行
             </Button>
-          </Link>
+            <Link href="/players/new" passHref>
+              <Button
+                as="a"
+                colorScheme="blue"
+                size="md"
+                leftIcon={<AddIcon />}
+                boxShadow="md"
+                _hover={{ 
+                  transform: 'translateY(-2px)',
+                  boxShadow: 'lg'
+                }}
+              >
+                新規登録
+              </Button>
+            </Link>
+          </HStack>
         </HStack>
 
         <Card>
@@ -381,11 +425,8 @@ export default function Players() {
                   <Th borderColor={borderColor}>メインロール</Th>
                   <Th borderColor={borderColor}>タグ</Th>
                   <Th borderColor={borderColor} isNumeric>勝率</Th>
-                  <Th borderColor={borderColor} isNumeric>TOP</Th>
-                  <Th borderColor={borderColor} isNumeric>JUNGLE</Th>
-                  <Th borderColor={borderColor} isNumeric>MID</Th>
-                  <Th borderColor={borderColor} isNumeric>ADC</Th>
-                  <Th borderColor={borderColor} isNumeric>SUP</Th>
+                  <Th borderColor={borderColor} isNumeric>メインロールレート</Th>
+                  <Th borderColor={borderColor} isNumeric>サブロールレート</Th>
                   <Th borderColor={borderColor} width="120px"></Th>
                 </Tr>
               </Thead>
@@ -501,15 +542,15 @@ export default function Players() {
                           ({player.stats.wins}勝{player.stats.losses}敗)
                         </Text>
                       </Td>
-                      {/* TOPレート */}
+                      {/* メインロールレート */}
                       <Td borderColor={borderColor} isNumeric>
                         {isEditingRates ? (
                           <NumberInput
                             size="sm"
                             min={0}
                             max={5000}
-                            value={editingRates.rates.TOP}
-                            onChange={(_, value) => handleRateChange(GameRole.TOP, value)}
+                            value={editingRates.mainRate}
+                            onChange={(_, value) => handleMainRateChange(value)}
                           >
                             <NumberInputField />
                             <NumberInputStepper>
@@ -518,23 +559,20 @@ export default function Players() {
                             </NumberInputStepper>
                           </NumberInput>
                         ) : (
-                          <Text 
-                            fontWeight="bold"
-                            color={player.mainRole === GameRole.TOP ? 'blue.600' : 'inherit'}
-                          >
-                            {player.rates.TOP}
+                          <Text fontWeight="bold" color="blue.600">
+                            {player.mainRate}
                           </Text>
                         )}
                       </Td>
-                      {/* JUNGLEレート */}
+                      {/* サブロールレート */}
                       <Td borderColor={borderColor} isNumeric>
                         {isEditingRates ? (
                           <NumberInput
                             size="sm"
                             min={0}
                             max={5000}
-                            value={editingRates.rates.JUNGLE}
-                            onChange={(_, value) => handleRateChange(GameRole.JUNGLE, value)}
+                            value={editingRates.subRate}
+                            onChange={(_, value) => handleSubRateChange(value)}
                           >
                             <NumberInputField />
                             <NumberInputStepper>
@@ -543,86 +581,8 @@ export default function Players() {
                             </NumberInputStepper>
                           </NumberInput>
                         ) : (
-                          <Text 
-                            fontWeight="bold"
-                            color={player.mainRole === GameRole.JUNGLE ? 'blue.600' : 'inherit'}
-                          >
-                            {player.rates.JUNGLE}
-                          </Text>
-                        )}
-                      </Td>
-                      {/* MIDレート */}
-                      <Td borderColor={borderColor} isNumeric>
-                        {isEditingRates ? (
-                          <NumberInput
-                            size="sm"
-                            min={0}
-                            max={5000}
-                            value={editingRates.rates.MID}
-                            onChange={(_, value) => handleRateChange(GameRole.MID, value)}
-                          >
-                            <NumberInputField />
-                            <NumberInputStepper>
-                              <NumberIncrementStepper />
-                              <NumberDecrementStepper />
-                            </NumberInputStepper>
-                          </NumberInput>
-                        ) : (
-                          <Text 
-                            fontWeight="bold"
-                            color={player.mainRole === GameRole.MID ? 'blue.600' : 'inherit'}
-                          >
-                            {player.rates.MID}
-                          </Text>
-                        )}
-                      </Td>
-                      {/* ADCレート */}
-                      <Td borderColor={borderColor} isNumeric>
-                        {isEditingRates ? (
-                          <NumberInput
-                            size="sm"
-                            min={0}
-                            max={5000}
-                            value={editingRates.rates.ADC}
-                            onChange={(_, value) => handleRateChange(GameRole.ADC, value)}
-                          >
-                            <NumberInputField />
-                            <NumberInputStepper>
-                              <NumberIncrementStepper />
-                              <NumberDecrementStepper />
-                            </NumberInputStepper>
-                          </NumberInput>
-                        ) : (
-                          <Text 
-                            fontWeight="bold"
-                            color={player.mainRole === GameRole.ADC ? 'blue.600' : 'inherit'}
-                          >
-                            {player.rates.ADC}
-                          </Text>
-                        )}
-                      </Td>
-                      {/* SUPレート */}
-                      <Td borderColor={borderColor} isNumeric>
-                        {isEditingRates ? (
-                          <NumberInput
-                            size="sm"
-                            min={0}
-                            max={5000}
-                            value={editingRates.rates.SUP}
-                            onChange={(_, value) => handleRateChange(GameRole.SUP, value)}
-                          >
-                            <NumberInputField />
-                            <NumberInputStepper>
-                              <NumberIncrementStepper />
-                              <NumberDecrementStepper />
-                            </NumberInputStepper>
-                          </NumberInput>
-                        ) : (
-                          <Text 
-                            fontWeight="bold"
-                            color={player.mainRole === GameRole.SUP ? 'blue.600' : 'inherit'}
-                          >
-                            {player.rates.SUP}
+                          <Text fontWeight="bold" color="gray.600">
+                            {player.subRate}
                           </Text>
                         )}
                       </Td>

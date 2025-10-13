@@ -31,13 +31,7 @@ import Card from '@/components/Card'
 export default function NewPlayer() {
   const [name, setName] = useState('')
   const [mainRole, setMainRole] = useState<GameRole>(GameRole.TOP)
-  const [roleRanks, setRoleRanks] = useState<{ [key in GameRole]: Rank }>({
-    [GameRole.TOP]: 'UNRANKED',
-    [GameRole.JUNGLE]: 'UNRANKED',
-    [GameRole.MID]: 'UNRANKED',
-    [GameRole.ADC]: 'UNRANKED',
-    [GameRole.SUP]: 'UNRANKED',
-  })
+  const [mainRank, setMainRank] = useState<Rank>('UNRANKED')
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const toast = useToast()
@@ -46,54 +40,13 @@ export default function NewPlayer() {
   // メインロールが変更されたときの処理
   const handleMainRoleChange = (newMainRole: GameRole) => {
     setMainRole(newMainRole)
-    
-    // 現在のメインロールのランクを取得
-    const currentMainRoleRank = roleRanks[newMainRole]
-    if (currentMainRoleRank !== 'UNRANKED') {
-      // 他のロールのランクを自動調整
-      const ranks = Object.keys(RANK_RATES) as Rank[]
-      const rankIndex = ranks.indexOf(currentMainRoleRank)
-      const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : currentMainRoleRank
-
-      const newRoleRanks = { ...roleRanks }
-      Object.values(GameRole).forEach((role) => {
-        if (role !== newMainRole && newRoleRanks[role] === 'UNRANKED') {
-          newRoleRanks[role] = lowerRank
-        }
-      })
-      setRoleRanks(newRoleRanks)
-    }
-  }
-
-  // ロールのランクが変更されたときに他のロールのランクを自動調整
-  const handleRankChange = (role: GameRole, rank: Rank) => {
-    const newRoleRanks = { ...roleRanks, [role]: rank }
-
-    // メインロールのランクが変更された場合、他のロールのランクを自動調整
-    if (role === mainRole && rank !== 'UNRANKED') {
-      const ranks = Object.keys(RANK_RATES) as Rank[]
-      const rankIndex = ranks.indexOf(rank)
-      const lowerRank = rankIndex > 0 ? ranks[rankIndex - 1] : rank
-
-      Object.values(GameRole).forEach((r) => {
-        if (r !== role) {
-          newRoleRanks[r] = lowerRank
-        }
-      })
-    }
-
-    setRoleRanks(newRoleRanks)
   }
 
   // レートを計算
   const calculateRates = () => {
-    const rates: { [key in GameRole]: number } = {} as { [key in GameRole]: number }
-    Object.entries(roleRanks).forEach(([role, rank]) => {
-      rates[role as GameRole] = role === mainRole ? 
-        RANK_RATES[rank].main : 
-        RANK_RATES[rank].sub
-    })
-    return rates
+    const mainRate = RANK_RATES[mainRank].main
+    const subRate = RANK_RATES[mainRank].sub
+    return { mainRate, subRate }
   }
 
   // タグを追加
@@ -120,7 +73,7 @@ export default function NewPlayer() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim() || !mainRole) {
+    if (!name.trim() || !mainRole || !mainRank) {
       toast({
         title: 'エラー',
         description: '名前とメインロールを入力してください',
@@ -137,10 +90,12 @@ export default function NewPlayer() {
     }
 
     try {
+      const rates = calculateRates()
       const player: Omit<Player, 'id'> = {
         name,
         mainRole,
-        rates: calculateRates(),
+        mainRate: rates.mainRate,
+        subRate: rates.subRate,
         stats: {
           wins: 0,
           losses: 0,
@@ -213,48 +168,24 @@ export default function NewPlayer() {
             </Card>
 
             <Card>
-              <FormLabel fontWeight="bold" mb={4}>ロール別ランク</FormLabel>
-              <Grid 
-                templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }}
-                gap={4}
-              >
-                {Object.values(GameRole).map((role) => (
-                  <GridItem key={role}>
-                    <Card
-                      bg={role === mainRole ? 'blue.50' : 'white'}
-                      border="1px solid"
-                      borderColor={role === mainRole ? 'blue.200' : 'gray.200'}
-                    >
-                      <FormControl>
-                        <FormLabel>
-                          {role}
-                          {role === mainRole && (
-                            <Text as="span" color="blue.500" ml={2} fontWeight="bold">
-                              (メイン)
-                            </Text>
-                          )}
-                        </FormLabel>
-                        <Select
-                          value={roleRanks[role]}
-                          onChange={(e) => handleRankChange(role, e.target.value as Rank)}
-                          size="md"
-                        >
-                          {Object.keys(RANK_RATES).map((rank) => (
-                            <option key={rank} value={rank}>
-                              {rank}
-                            </option>
-                          ))}
-                        </Select>
-                        <Text fontSize="sm" color="gray.600" mt={2}>
-                          レート: {role === mainRole ? 
-                            RANK_RATES[roleRanks[role]].main : 
-                            RANK_RATES[roleRanks[role]].sub}
-                        </Text>
-                      </FormControl>
-                    </Card>
-                  </GridItem>
-                ))}
-              </Grid>
+              <FormControl isRequired>
+                <FormLabel fontWeight="bold">ランク</FormLabel>
+                <Select 
+                  value={mainRank} 
+                  onChange={(e) => setMainRank(e.target.value as Rank)}
+                  size="lg"
+                  borderRadius="md"
+                >
+                  {Object.keys(RANK_RATES).map((rank) => (
+                    <option key={rank} value={rank}>
+                      {rank}
+                    </option>
+                  ))}
+                </Select>
+                <Text fontSize="sm" color="gray.600" mt={2}>
+                  メインロールレート: {RANK_RATES[mainRank].main} | サブロールレート: {RANK_RATES[mainRank].sub}
+                </Text>
+              </FormControl>
             </Card>
 
             <Card>
@@ -301,7 +232,7 @@ export default function NewPlayer() {
               size="lg"
               w="full"
               boxShadow="md"
-              isDisabled={!name.trim() || !mainRole}
+              isDisabled={!name.trim() || !mainRole || !mainRank}
               _hover={{ 
                 transform: 'translateY(-2px)',
                 boxShadow: 'lg'

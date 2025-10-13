@@ -72,7 +72,7 @@ export default function RatingHistory() {
   const playerStats = players.map(player => ({
     name: player.name,
     avatar: 'https://bit.ly/broken-link',
-    currentRate: player.rates[player.mainRole],
+    currentRate: player.mainRate,
     rateChange: 0, // TODO: レート変動の計算を実装
     winRate: player.stats.wins + player.stats.losses > 0
       ? Math.round((player.stats.wins / (player.stats.wins + player.stats.losses)) * 100)
@@ -86,7 +86,7 @@ export default function RatingHistory() {
     const playersInRole = players.filter(p => p.mainRole === role)
     const totalGames = playersInRole.reduce((sum, p) => sum + p.stats.wins + p.stats.losses, 0)
     const totalWins = playersInRole.reduce((sum, p) => sum + p.stats.wins, 0)
-    const avgRate = playersInRole.reduce((sum, p) => sum + p.rates[role], 0) / (playersInRole.length || 1)
+    const avgRate = playersInRole.reduce((sum, p) => sum + p.mainRate, 0) / (playersInRole.length || 1)
 
     return {
       role,

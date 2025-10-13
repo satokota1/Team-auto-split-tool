@@ -33,7 +33,8 @@ export interface Player {
   id: string
   name: string
   mainRole: GameRole
-  rates: { [key in GameRole]: number }
+  mainRate: number
+  subRate: number
   stats: {
     wins: number
     losses: number

@@ -135,7 +135,7 @@ export default function TeamMaker() {
 
   const calculateTeamRating = (team: { player: Player; role: GameRole }[]) => {
     return Math.round(team.reduce((sum, { player, role }) => {
-      return sum + (role === player.mainRole ? player.rates[role] : Math.round(player.rates[role] * 0.8))
+      return sum + (role === player.mainRole ? player.mainRate : player.subRate)
     }, 0))
   }
 
@@ -289,8 +289,9 @@ export default function TeamMaker() {
         const isWinner = team === winner
         const rateChange = isWinner ? 50 : -50
 
+        const isMainRole = role === player.mainRole
         await updateDoc(playerRef, {
-          [`rates.${role}`]: player.rates[role as GameRole] + rateChange,
+          [isMainRole ? 'mainRate' : 'subRate']: (isMainRole ? player.mainRate : player.subRate) + rateChange,
           [`stats.${isWinner ? 'wins' : 'losses'}`]: player.stats[isWinner ? 'wins' : 'losses'] + 1,
         })
       })
@@ -386,8 +387,8 @@ export default function TeamMaker() {
     if (team.length === 0) return 0
     const totalRate = team.reduce((sum, { player, role }) => {
       const rate = role === player.mainRole ? 
-        player.rates[role] : 
-        Math.round(player.rates[role] * 0.8)
+        player.mainRate : 
+        player.subRate
       return sum + rate
     }, 0)
     return Math.round(totalRate / team.length)
@@ -497,7 +498,7 @@ export default function TeamMaker() {
                                 </Badge>
                               </HStack>
                               <Text fontSize="sm" color="gray.600">
-                                レート: {player.rates[player.mainRole]}
+                                メイン: {player.mainRate} | サブ: {player.subRate}
                               </Text>
                               {player.tags && player.tags.length > 0 && (
                                 <Wrap spacing={1}>
@@ -642,7 +643,7 @@ export default function TeamMaker() {
                                   {player.role}
                                 </Badge>
                                 <Text fontSize="sm" color="gray.500">
-                                  レート: {player.role === player.player.mainRole ? player.player.rates[player.role] : Math.round(player.player.rates[player.role] * 0.8)}
+                                  レート: {player.role === player.player.mainRole ? player.player.mainRate : player.player.subRate}
                                 </Text>
                               </VStack>
                             </MenuButton>
@@ -661,11 +662,11 @@ export default function TeamMaker() {
                                     {' '}
                                     {(() => {
                                       const currentRate = player.role === player.player.mainRole ? 
-                                        player.player.rates[player.role] : 
-                                        Math.round(player.player.rates[player.role] * 0.8)
+                                        player.player.mainRate : 
+                                        player.player.subRate
                                       const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
-                                        otherPlayer.player.rates[otherPlayer.role] : 
-                                        Math.round(otherPlayer.player.rates[otherPlayer.role] * 0.8)
+                                        otherPlayer.player.mainRate : 
+                                        otherPlayer.player.subRate
                                       const diff = otherRate - currentRate
                                       return (
                                         <Text as="span" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
