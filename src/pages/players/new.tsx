@@ -35,7 +35,7 @@ import Card from '@/components/Card'
 const AVAILABLE_TAGS = ['249', 'SHIFT', 'きらくに']
 
 export default function NewPlayer() {
-  const [name, setName] = useState('')
+  const [summonerName, setSummonerName] = useState('')
   const [mainRole, setMainRole] = useState<GameRole>(GameRole.TOP)
   const [mainRank, setMainRank] = useState<Rank>('UNRANKED')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -43,10 +43,6 @@ export default function NewPlayer() {
   const toast = useToast()
   const router = useRouter()
 
-  // メインロールが変更されたときの処理
-  const handleMainRoleChange = (newMainRole: GameRole) => {
-    setMainRole(newMainRole)
-  }
 
   // レートを計算
   const calculateRates = () => {
@@ -76,10 +72,44 @@ export default function NewPlayer() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim() || !mainRole || !mainRank || selectedTags.length === 0) {
+    // バリデーション
+    if (!summonerName.trim()) {
       toast({
         title: 'エラー',
-        description: '名前、メインロール、タグを入力してください',
+        description: 'サモナーネームを入力してください',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+    
+    if (!mainRole) {
+      toast({
+        title: 'エラー',
+        description: 'メインロールを選択してください',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+    
+    if (!mainRank) {
+      toast({
+        title: 'エラー',
+        description: 'ランクを選択してください',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+    
+    if (selectedTags.length === 0) {
+      toast({
+        title: 'エラー',
+        description: 'タグを選択してください',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -88,14 +118,14 @@ export default function NewPlayer() {
     }
 
     // 確認ダイアログを表示
-    if (!window.confirm(`以下の内容で登録しますか？\n\n名前: ${name}\nメインロール: ${mainRole}\nタグ: ${selectedTags.join(', ')}`)) {
+    if (!window.confirm(`以下の内容で登録しますか？\n\nサモナーネーム: ${summonerName}\nメインロール: ${mainRole}\nタグ: ${selectedTags.join(', ')}`)) {
       return
     }
 
     try {
       const rates = calculateRates()
       const player: Omit<Player, 'id'> = {
-        name,
+        name: summonerName,
         mainRole,
         mainRate: rates.mainRate,
         subRate: rates.subRate,
@@ -141,10 +171,10 @@ export default function NewPlayer() {
           <Stack spacing={6}>
             <Card>
               <FormControl isRequired>
-                <FormLabel fontWeight="bold">名前</FormLabel>
+                <FormLabel fontWeight="bold">サモナーネーム</FormLabel>
                 <Input 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)}
+                  value={summonerName} 
+                  onChange={(e) => setSummonerName(e.target.value)}
                   size="lg"
                   borderRadius="md"
                   placeholder="FAKER#JP1"
@@ -158,7 +188,7 @@ export default function NewPlayer() {
                 <FormLabel fontWeight="bold">メインロール</FormLabel>
                 <Select 
                   value={mainRole} 
-                  onChange={(e) => handleMainRoleChange(e.target.value as GameRole)}
+                  onChange={(e) => setMainRole(e.target.value as GameRole)}
                   size="lg"
                   borderRadius="md"
                 >
