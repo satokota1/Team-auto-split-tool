@@ -83,6 +83,7 @@ export default function Players() {
   // 統合編集モーダルの状態
   const [editModalPlayer, setEditModalPlayer] = useState<(Player & { id: string }) | null>(null)
   const [tempEditName, setTempEditName] = useState('')
+  const [tempEditNickname, setTempEditNickname] = useState('')
   const [tempEditMainRate, setTempEditMainRate] = useState(0)
   const [tempEditSubRate, setTempEditSubRate] = useState(0)
   const [tempEditTags, setTempEditTags] = useState<string[]>([])
@@ -402,6 +403,7 @@ export default function Players() {
   const handleEditPlayerClick = (player: Player & { id: string }) => {
     setEditModalPlayer(player)
     setTempEditName(player.name)
+    setTempEditNickname(player.nickname || '')
     setTempEditMainRate(player.mainRate)
     setTempEditSubRate(player.subRate)
     setTempEditTags(player.tags || [])
@@ -417,6 +419,7 @@ export default function Players() {
       const playerRef = doc(db, 'players', editModalPlayer.id)
       await updateDoc(playerRef, {
         name: tempEditName,
+        nickname: tempEditNickname.trim() || null,
         mainRate: tempEditMainRate,
         subRate: tempEditSubRate,
         tags: tempEditTags,
@@ -429,6 +432,7 @@ export default function Players() {
           ? { 
               ...player, 
               name: tempEditName,
+              nickname: tempEditNickname.trim() || undefined,
               mainRate: tempEditMainRate,
               subRate: tempEditSubRate,
               tags: tempEditTags,
@@ -462,6 +466,7 @@ export default function Players() {
   const handleCancelEditModal = () => {
     setEditModalPlayer(null)
     setTempEditName('')
+    setTempEditNickname('')
     setTempEditMainRate(0)
     setTempEditSubRate(0)
     setTempEditTags([])
@@ -480,7 +485,9 @@ export default function Players() {
 
   // フィルタリングされたプレイヤー
   const filteredPlayers = players.filter((player) => {
-    const matchesSearch = player.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const displayName = player.nickname || player.name
+    const matchesSearch = displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         player.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesTags = selectedTags.length === 0 || 
       selectedTags.some(tag => player.tags?.includes(tag))
     return matchesSearch && matchesTags
@@ -611,7 +618,7 @@ export default function Players() {
                             width="200px"
                           />
                         ) : (
-                          player.name
+                          player.nickname || player.name
                         )}
                       </Td>
                       <Td borderColor={borderColor}>
@@ -929,12 +936,25 @@ export default function Players() {
               <VStack spacing={6} align="stretch">
                 {/* 名前編集 */}
                 <FormControl>
-                  <FormLabel>プレイヤー名</FormLabel>
+                  <FormLabel>サモナーネーム</FormLabel>
                   <Input
                     value={tempEditName}
                     onChange={(e) => setTempEditName(e.target.value)}
-                    placeholder="プレイヤー名を入力"
+                    placeholder="サモナーネームを入力"
                   />
+                </FormControl>
+
+                {/* ニックネーム編集 */}
+                <FormControl>
+                  <FormLabel>ニックネーム（Discord表示名）</FormLabel>
+                  <Input
+                    value={tempEditNickname}
+                    onChange={(e) => setTempEditNickname(e.target.value)}
+                    placeholder="ニックネームを入力（任意）"
+                  />
+                  <Text fontSize="sm" color="gray.600" mt={1}>
+                    プレイヤー一覧で優先的に表示されます
+                  </Text>
                 </FormControl>
 
                 {/* レート編集 */}

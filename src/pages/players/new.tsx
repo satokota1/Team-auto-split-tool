@@ -36,6 +36,7 @@ const AVAILABLE_TAGS = ['249', 'SHIFT', 'きらくに']
 
 export default function NewPlayer() {
   const [summonerName, setSummonerName] = useState('')
+  const [nickname, setNickname] = useState('')
   const [mainRole, setMainRole] = useState<GameRole>(GameRole.TOP)
   const [mainRank, setMainRank] = useState<Rank>('UNRANKED')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -118,7 +119,8 @@ export default function NewPlayer() {
     }
 
     // 確認ダイアログを表示
-    if (!window.confirm(`以下の内容で登録しますか？\n\nサモナーネーム: ${summonerName}\nメインロール: ${mainRole}\nタグ: ${selectedTags.join(', ')}`)) {
+    const nicknameText = nickname.trim() ? `\nニックネーム: ${nickname}` : ''
+    if (!window.confirm(`以下の内容で登録しますか？\n\nサモナーネーム: ${summonerName}${nicknameText}\nメインロール: ${mainRole}\nタグ: ${selectedTags.join(', ')}`)) {
       return
     }
 
@@ -126,6 +128,7 @@ export default function NewPlayer() {
       const rates = calculateRates()
       const player: Omit<Player, 'id'> = {
         name: summonerName,
+        nickname: nickname.trim() || undefined,
         mainRole,
         mainRate: rates.mainRate,
         subRate: rates.subRate,
@@ -180,6 +183,23 @@ export default function NewPlayer() {
                   placeholder="FAKER#JP1"
                   _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px blue.400' }}
                 />
+              </FormControl>
+            </Card>
+
+            <Card>
+              <FormControl>
+                <FormLabel fontWeight="bold">ニックネーム（Discord表示名）</FormLabel>
+                <Input 
+                  value={nickname} 
+                  onChange={(e) => setNickname(e.target.value)}
+                  size="lg"
+                  borderRadius="md"
+                  placeholder="こにー（任意）"
+                  _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px blue.400' }}
+                />
+                <Text fontSize="sm" color="gray.600" mt={2}>
+                  プレイヤー一覧で優先的に表示されます（任意）
+                </Text>
               </FormControl>
             </Card>
 

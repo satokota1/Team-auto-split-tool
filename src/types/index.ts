@@ -31,7 +31,8 @@ export const RANK_RATES: { [key in Rank]: RankRate } = {
 
 export interface Player {
   id: string
-  name: string
+  name: string // サモナーネーム
+  nickname?: string // ニックネーム（Discord表示名）
   mainRole: GameRole
   mainRate: number
   subRate: number
