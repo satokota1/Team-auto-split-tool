@@ -375,7 +375,8 @@ export default function TeamMaker() {
     try {
       const matchRef = await addDoc(collection(db, 'matches'), match)
 
-      // プレイヤーのレートを更新
+      // プレイヤーのレートを更新（ローカルとFirebase両方）
+      const updatedPlayers = [...players]
       const updatePromises = match.players.map(async ({ playerId, role, team }) => {
         const playerRef = doc(db, 'players', playerId)
         const player = players.find((p) => p.id === playerId)
@@ -383,23 +384,32 @@ export default function TeamMaker() {
 
         const isWinner = team === winner
         const rateChange = isWinner ? 50 : -50
-
         const isMainRole = role === player.mainRole
+
+        // ローカルのプレイヤーリストを即座に更新
+        const playerIndex = updatedPlayers.findIndex(p => p.id === playerId)
+        if (playerIndex !== -1) {
+          updatedPlayers[playerIndex] = {
+            ...updatedPlayers[playerIndex],
+            [isMainRole ? 'mainRate' : 'subRate']: (isMainRole ? player.mainRate : player.subRate) + rateChange,
+            stats: {
+              ...updatedPlayers[playerIndex].stats,
+              [isWinner ? 'wins' : 'losses']: updatedPlayers[playerIndex].stats[isWinner ? 'wins' : 'losses'] + 1,
+            }
+          }
+        }
+
+        // Firebaseも更新
         await updateDoc(playerRef, {
           [isMainRole ? 'mainRate' : 'subRate']: (isMainRole ? player.mainRate : player.subRate) + rateChange,
           [`stats.${isWinner ? 'wins' : 'losses'}`]: player.stats[isWinner ? 'wins' : 'losses'] + 1,
         })
       })
 
-      await Promise.all(updatePromises)
+      // ローカルのプレイヤーリストを即座に更新
+      setPlayers(updatedPlayers)
 
-      // プレイヤーリストを再取得して画面を更新
-      const querySnapshot = await getDocs(collection(db, 'players'))
-      const updatedPlayersData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Player[]
-      setPlayers(updatedPlayersData)
+      await Promise.all(updatePromises)
 
       toast({
         title: '成功',
@@ -424,33 +434,6 @@ export default function TeamMaker() {
     }
   }
 
-  // 同じチーム構成で再戦する機能
-  const handleRematch = () => {
-    if (!teams) return
-    
-    // 現在のチーム構成から選択されたプレイヤーを再構築
-    const newSelectedPlayers: SelectedPlayer[] = [
-      ...teams.blue.map(({ player }) => ({
-        player: player as Player & { id: string },
-        unwantedRoles: player.unwantedRoles || [], // 登録済みの絶対にやりたくないロールを初期選択
-      })),
-      ...teams.red.map(({ player }) => ({
-        player: player as Player & { id: string },
-        unwantedRoles: player.unwantedRoles || [], // 登録済みの絶対にやりたくないロールを初期選択
-      }))
-    ]
-    
-    setSelectedPlayers(newSelectedPlayers)
-    setTeams(null)
-    
-    toast({
-      title: '再戦準備完了',
-      description: '同じチーム構成で再戦の準備ができました',
-      status: 'success',
-      duration: 3000,
-      isClosable: true,
-    })
-  }
 
   const handleSwapPlayers = (team1: 'blue' | 'red', index1: number, team2: 'blue' | 'red', index2: number) => {
     if (!teams) return;
@@ -829,14 +812,6 @@ export default function TeamMaker() {
                   >
                     チーム再生成
                   </Button>
-                  <Button
-                    leftIcon={<RepeatIcon />}
-                    colorScheme="purple"
-                    onClick={handleRematch}
-                    size="sm"
-                  >
-                    同じチームで再戦
-                  </Button>
                 </HStack>
               </HStack>
             </ModalHeader>
@@ -856,7 +831,7 @@ export default function TeamMaker() {
                           </Heading>
                           <Text fontSize="sm" color="gray.600" mb={2}>
                             {isRoleAssignmentMode 
-                              ? 'プレイヤーをクリックするとロールを変更できます。ドラッグでチーム間移動も可能です。'
+                              ? 'プレイヤーをクリックするとロールを変更できます。'
                               : 'プレイヤーをクリックすると相手チームのプレイヤーと入れ替えることができます'
                             }
                           </Text>
@@ -908,33 +883,45 @@ export default function TeamMaker() {
                                       </MenuGroup>
                                     )}
                                     <MenuGroup title={`${name === 'チーム1' ? 'チーム2' : 'チーム1'}と交代`}>
-                                      {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
-                                        <MenuItem
-                                          key={otherPlayer.player.id}
-                                          onClick={() => {
-                                            const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
-                                            const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
-                                            handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, otherIndex)
-                                          }}
-                                        >
-                                          {otherPlayer.player.name} ({otherPlayer.role})
-                                          {' '}
-                                          {(() => {
-                                            const currentRate = player.role === player.player.mainRole ? 
-                                              player.player.mainRate : 
-                                              player.player.subRate
-                                            const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
-                                              otherPlayer.player.mainRate : 
-                                              otherPlayer.player.subRate
-                                            const diff = otherRate - currentRate
-                                            return (
-                                              <Text as="span" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
-                                                ({diff > 0 ? '+' : ''}{diff})
-                                              </Text>
-                                            )
-                                          })()}
-                                        </MenuItem>
-                                      ))}
+                                      <Box p={2}>
+                                        <SimpleGrid columns={2} spacing={1}>
+                                          {(name === 'チーム1' ? teams.red : teams.blue).map((otherPlayer, otherIndex) => (
+                                            <MenuItem
+                                              key={otherPlayer.player.id}
+                                              onClick={() => {
+                                                const otherTeamKey = name === 'チーム1' ? 'red' : 'blue'
+                                                const currentTeamKey = name === 'チーム1' ? 'blue' : 'red'
+                                                handleSwapPlayers(currentTeamKey, teamIndex, otherTeamKey, otherIndex)
+                                              }}
+                                              minH="auto"
+                                              py={2}
+                                            >
+                                              <VStack align="start" spacing={0}>
+                                                <Text fontSize="sm" fontWeight="bold">
+                                                  {otherPlayer.player.name}
+                                                </Text>
+                                                <Text fontSize="xs" color="gray.500">
+                                                  {otherPlayer.role}
+                                                </Text>
+                                                {(() => {
+                                                  const currentRate = player.role === player.player.mainRole ? 
+                                                    player.player.mainRate : 
+                                                    player.player.subRate
+                                                  const otherRate = otherPlayer.role === otherPlayer.player.mainRole ? 
+                                                    otherPlayer.player.mainRate : 
+                                                    otherPlayer.player.subRate
+                                                  const diff = otherRate - currentRate
+                                                  return (
+                                                    <Text fontSize="xs" color={diff > 0 ? 'green.500' : diff < 0 ? 'red.500' : 'gray.500'}>
+                                                      {diff > 0 ? '+' : ''}{diff}
+                                                    </Text>
+                                                  )
+                                                })()}
+                                              </VStack>
+                                            </MenuItem>
+                                          ))}
+                                        </SimpleGrid>
+                                      </Box>
                                     </MenuGroup>
                                   </MenuList>
                                 </Menu>
