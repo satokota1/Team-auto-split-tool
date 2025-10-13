@@ -39,6 +39,7 @@ export default function NewPlayer() {
   const [mainRole, setMainRole] = useState<GameRole>(GameRole.TOP)
   const [mainRank, setMainRank] = useState<Rank>('UNRANKED')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [unwantedRoles, setUnwantedRoles] = useState<GameRole[]>([])
   const toast = useToast()
   const router = useRouter()
 
@@ -60,6 +61,15 @@ export default function NewPlayer() {
       prev.includes(tag) 
         ? prev.filter(t => t !== tag)
         : [...prev, tag]
+    )
+  }
+
+  // 絶対にやりたくないロールの選択/解除
+  const handleUnwantedRoleToggle = (role: GameRole) => {
+    setUnwantedRoles(prev => 
+      prev.includes(role) 
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
     )
   }
 
@@ -94,6 +104,7 @@ export default function NewPlayer() {
           losses: 0,
         },
         tags: selectedTags,
+        unwantedRoles: unwantedRoles.length > 0 ? unwantedRoles : undefined,
       }
 
       await addDoc(collection(db, 'players'), player)
@@ -207,6 +218,36 @@ export default function NewPlayer() {
                 </Wrap>
                 <Text fontSize="sm" color="gray.600" mt={2}>
                   よく遊ぶメンバーや特徴をタグで管理できます（必須）
+                </Text>
+              </FormControl>
+            </Card>
+
+            <Card>
+              <FormControl>
+                <FormLabel fontWeight="bold">絶対にやりたくないロール</FormLabel>
+                <Wrap spacing={3} mt={2}>
+                  {Object.values(GameRole).map((role) => (
+                    <WrapItem key={role}>
+                      <Checkbox
+                        isChecked={unwantedRoles.includes(role)}
+                        onChange={() => handleUnwantedRoleToggle(role)}
+                        colorScheme="red"
+                        size="lg"
+                      >
+                        <Tag
+                          size="lg"
+                          borderRadius="full"
+                          variant={unwantedRoles.includes(role) ? "solid" : "outline"}
+                          colorScheme="red"
+                        >
+                          <TagLabel>{role}</TagLabel>
+                        </Tag>
+                      </Checkbox>
+                    </WrapItem>
+                  ))}
+                </Wrap>
+                <Text fontSize="sm" color="gray.600" mt={2}>
+                  絶対にやりたくないロールを選択してください（任意）
                 </Text>
               </FormControl>
             </Card>

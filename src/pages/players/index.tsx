@@ -58,6 +58,11 @@ interface EditingRates {
   subRate: number;
 }
 
+interface EditingUnwantedRoles {
+  id: string;
+  unwantedRoles: GameRole[];
+}
+
 export default function Players() {
   const [players, setPlayers] = useState<(Player & { id: string })[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -65,20 +70,21 @@ export default function Players() {
   const [editing, setEditing] = useState<{ id: string; newName: string } | null>(null)
   const [editingTags, setEditingTags] = useState<{ id: string; tags: string[] } | null>(null)
   const [editingRates, setEditingRates] = useState<EditingRates | null>(null)
+  const [editingUnwantedRoles, setEditingUnwantedRoles] = useState<EditingUnwantedRoles | null>(null)
   const [tagInput, setTagInput] = useState('')
   const borderColor = useColorModeValue('gray.200', 'gray.700')
   const toast = useToast()
 
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      const querySnapshot = await getDocs(collection(db, 'players'))
-      const playersData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as (Player & { id: string })[]
-      setPlayers(playersData)
-    }
+  const fetchPlayers = async () => {
+    const querySnapshot = await getDocs(collection(db, 'players'))
+    const playersData = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as (Player & { id: string })[]
+    setPlayers(playersData)
+  }
 
+  useEffect(() => {
     fetchPlayers()
   }, [])
 
@@ -287,6 +293,74 @@ export default function Players() {
     }
   }
 
+  // 絶対にやりたくないロール編集を開始
+  const handleEditUnwantedRolesClick = (player: Player & { id: string }) => {
+    setEditingUnwantedRoles({
+      id: player.id,
+      unwantedRoles: player.unwantedRoles || []
+    })
+  }
+
+  // 絶対にやりたくないロール編集を保存
+  const handleSaveUnwantedRoles = async (playerId: string) => {
+    if (!editingUnwantedRoles) return
+
+    try {
+      const playerRef = doc(db, 'players', playerId)
+      await updateDoc(playerRef, {
+        unwantedRoles: editingUnwantedRoles.unwantedRoles.length > 0 ? editingUnwantedRoles.unwantedRoles : null
+      })
+
+      // プレイヤーリストを更新
+      setPlayers(players.map(player => 
+        player.id === playerId 
+          ? { ...player, unwantedRoles: editingUnwantedRoles.unwantedRoles.length > 0 ? editingUnwantedRoles.unwantedRoles : undefined }
+          : player
+      ))
+
+      setEditingUnwantedRoles(null)
+      toast({
+        title: '成功',
+        description: '絶対にやりたくないロールを更新しました',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+    } catch (error) {
+      console.error('Error updating unwanted roles:', error)
+      toast({
+        title: 'エラー',
+        description: '絶対にやりたくないロールの更新に失敗しました',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    }
+  }
+
+  // 絶対にやりたくないロール編集をキャンセル
+  const handleCancelUnwantedRoles = () => {
+    setEditingUnwantedRoles(null)
+  }
+
+  // 絶対にやりたくないロールの選択/解除
+  const handleUnwantedRoleToggle = (role: GameRole) => {
+    if (editingUnwantedRoles) {
+      const currentRoles = editingUnwantedRoles.unwantedRoles
+      if (currentRoles.includes(role)) {
+        setEditingUnwantedRoles({
+          ...editingUnwantedRoles,
+          unwantedRoles: currentRoles.filter(r => r !== role)
+        })
+      } else {
+        setEditingUnwantedRoles({
+          ...editingUnwantedRoles,
+          unwantedRoles: [...currentRoles, role]
+        })
+      }
+    }
+  }
+
   // 既存プレイヤーのレート移行
   const handleMigration = async () => {
     if (!window.confirm('既存プレイヤーのレートデータを移行しますか？\n\nこの操作は一度だけ実行してください。')) {
@@ -470,6 +544,7 @@ export default function Players() {
                   <Th borderColor={borderColor}>名前</Th>
                   <Th borderColor={borderColor}>メインロール</Th>
                   <Th borderColor={borderColor}>タグ</Th>
+                  <Th borderColor={borderColor}>絶対にやりたくないロール</Th>
                   <Th borderColor={borderColor} isNumeric>勝率</Th>
                   <Th borderColor={borderColor} isNumeric>メインロールレート</Th>
                   <Th borderColor={borderColor} isNumeric>サブロールレート</Th>
@@ -485,6 +560,7 @@ export default function Players() {
                   const isEditing = editing?.id === player.id
                   const isEditingTags = editingTags?.id === player.id
                   const isEditingRates = editingRates?.id === player.id
+                  const isEditingUnwantedRoles = editingUnwantedRoles?.id === player.id
 
                   return (
                     <Tr 
@@ -570,6 +646,50 @@ export default function Players() {
                             )) || (
                               <Text fontSize="sm" color="gray.400">
                                 タグなし
+                              </Text>
+                            )}
+                          </Wrap>
+                        )}
+                      </Td>
+                      <Td borderColor={borderColor}>
+                        {isEditingUnwantedRoles ? (
+                          <VStack spacing={2} align="stretch">
+                            <Wrap spacing={2}>
+                              {Object.values(GameRole).map((role) => (
+                                <WrapItem key={role}>
+                                  <Checkbox
+                                    isChecked={editingUnwantedRoles.unwantedRoles.includes(role)}
+                                    onChange={() => handleUnwantedRoleToggle(role)}
+                                    colorScheme="red"
+                                    size="sm"
+                                  >
+                                    <Tag
+                                      size="sm"
+                                      variant={editingUnwantedRoles.unwantedRoles.includes(role) ? "solid" : "outline"}
+                                      colorScheme="red"
+                                    >
+                                      <TagLabel>{role}</TagLabel>
+                                    </Tag>
+                                  </Checkbox>
+                                </WrapItem>
+                              ))}
+                            </Wrap>
+                          </VStack>
+                        ) : (
+                          <Wrap spacing={1}>
+                            {player.unwantedRoles?.map((role, index) => (
+                              <WrapItem key={index}>
+                                <Tag
+                                  size="sm"
+                                  variant="outline"
+                                  colorScheme="red"
+                                >
+                                  <TagLabel>{role}</TagLabel>
+                                </Tag>
+                              </WrapItem>
+                            )) || (
+                              <Text fontSize="sm" color="gray.400">
+                                なし
                               </Text>
                             )}
                           </Wrap>
@@ -683,6 +803,23 @@ export default function Players() {
                                 onClick={handleCancelRates}
                               />
                             </>
+                          ) : isEditingUnwantedRoles ? (
+                            <>
+                              <IconButton
+                                aria-label="Save unwanted roles"
+                                icon={<CheckIcon />}
+                                size="sm"
+                                colorScheme="green"
+                                onClick={() => handleSaveUnwantedRoles(player.id)}
+                              />
+                              <IconButton
+                                aria-label="Cancel unwanted roles"
+                                icon={<CloseIcon />}
+                                size="sm"
+                                colorScheme="red"
+                                onClick={handleCancelUnwantedRoles}
+                              />
+                            </>
                           ) : (
                             <>
                               <IconButton
@@ -707,6 +844,14 @@ export default function Players() {
                                 onClick={() => handleEditRatesClick(player)}
                               >
                                 レート編集
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                colorScheme="red"
+                                onClick={() => handleEditUnwantedRolesClick(player)}
+                              >
+                                絶対にやりたくないロール編集
                               </Button>
                             </>
                           )}

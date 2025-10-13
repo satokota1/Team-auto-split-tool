@@ -108,7 +108,7 @@ export default function TeamMaker() {
       ...selectedPlayers,
       {
         player,
-        unwantedRoles: [],
+        unwantedRoles: player.unwantedRoles || [], // 登録済みの絶対にやりたくないロールを初期選択
       },
     ])
   }
@@ -337,11 +337,11 @@ export default function TeamMaker() {
     const newSelectedPlayers: SelectedPlayer[] = [
       ...teams.blue.map(({ player }) => ({
         player: player as Player & { id: string },
-        unwantedRoles: [],
+        unwantedRoles: player.unwantedRoles || [], // 登録済みの絶対にやりたくないロールを初期選択
       })),
       ...teams.red.map(({ player }) => ({
         player: player as Player & { id: string },
-        unwantedRoles: [],
+        unwantedRoles: player.unwantedRoles || [], // 登録済みの絶対にやりたくないロールを初期選択
       }))
     ]
     

@@ -40,6 +40,7 @@ export interface Player {
     losses: number
   }
   tags?: string[] // タグ機能を追加
+  unwantedRoles?: GameRole[] // 絶対にやりたくないロール
 }
 
 export interface SelectedPlayer {
