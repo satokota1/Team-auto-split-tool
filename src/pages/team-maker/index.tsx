@@ -211,8 +211,10 @@ export default function TeamMaker() {
     }, 0))
   }
 
-  const createTeams = () => {
-    if (selectedPlayers.length !== 10) {
+  const createTeams = (playersToUse?: SelectedPlayer[]) => {
+    const players = playersToUse || selectedPlayers
+    
+    if (players.length !== 10) {
       toast({
         title: 'エラー',
         description: '10人を選択してください',
@@ -225,7 +227,7 @@ export default function TeamMaker() {
 
     if (roleSelectionMode === 'manual') {
       // 手動ロール選択モード：メインロールのレートだけでチーム分け
-      const playersWithMainRates = selectedPlayers.map(sp => ({
+      const playersWithMainRates = players.map(sp => ({
         ...sp,
         rate: sp.player.mainRate
       }))
@@ -264,7 +266,7 @@ export default function TeamMaker() {
     } else {
       // 自動ロール選択モード（既存のロジック）
       // 絶対にやりたくないロールのチェック
-      const allUnwantedRoles = selectedPlayers.flatMap(p => p.unwantedRoles)
+      const allUnwantedRoles = players.flatMap(p => p.unwantedRoles)
       const roleCounts = {
         [GameRole.TOP]: 0,
         [GameRole.JUNGLE]: 0,
@@ -306,7 +308,7 @@ export default function TeamMaker() {
       }
 
       // 各プレイヤーを絶対にやりたくないロール以外の全ロールに配置
-      selectedPlayers.forEach((player) => {
+      players.forEach((player) => {
         Object.values(GameRole).forEach((gameRole) => {
           if (!player.unwantedRoles.includes(gameRole)) {
             roleGroups[gameRole].push(player)
@@ -402,10 +404,8 @@ export default function TeamMaker() {
     
     setSelectedPlayers(restoredSelectedPlayers)
     
-    // 状態更新を待ってからcreateTeamsを呼び出す
-    setTimeout(() => {
-      createTeams()
-    }, 0)
+    // 復元したselectedPlayersを直接渡してチーム作成
+    createTeams(restoredSelectedPlayers)
   }
 
   const handleMatchResult = async (winner: 'BLUE' | 'RED') => {
