@@ -847,7 +847,7 @@ export default function TeamMaker() {
                 )}
                 <Button
                   colorScheme="blue"
-                  onClick={createTeams}
+                  onClick={() => createTeams()}
                   isDisabled={selectedPlayers.length < 10}
                   size="md"
                   minW={{ base: '100%', md: '180px' }}
