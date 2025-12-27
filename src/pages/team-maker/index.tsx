@@ -380,6 +380,34 @@ export default function TeamMaker() {
     }
   }
 
+  // チーム再生成用の関数
+  const regenerateTeams = () => {
+    if (!teams) return
+    
+    // 現在のチームからselectedPlayersを復元
+    const currentTeamPlayers = [
+      ...teams.blue.map((t: { player: Player; role: GameRole }) => t.player),
+      ...teams.red.map((t: { player: Player; role: GameRole }) => t.player)
+    ]
+    
+    // 重複を除去してselectedPlayersに設定
+    const uniquePlayers = currentTeamPlayers.filter((player, index, self) =>
+      index === self.findIndex(p => p.id === player.id)
+    )
+    
+    const restoredSelectedPlayers: SelectedPlayer[] = uniquePlayers.map(player => ({
+      player,
+      unwantedRoles: player.unwantedRoles || []
+    }))
+    
+    setSelectedPlayers(restoredSelectedPlayers)
+    
+    // 状態更新を待ってからcreateTeamsを呼び出す
+    setTimeout(() => {
+      createTeams()
+    }, 0)
+  }
+
   const handleMatchResult = async (winner: 'BLUE' | 'RED') => {
     if (!teams) return
 
@@ -433,6 +461,25 @@ export default function TeamMaker() {
       setPlayers(updatedPlayers)
 
       await Promise.all(updatePromises)
+
+      // teams内のプレイヤー情報も更新して、モーダル内のレート表示を即座に反映
+      if (teams) {
+        const updatedTeams = {
+          blue: teams.blue.map((teamMember) => {
+            const updatedPlayer = updatedPlayers.find(p => p.id === teamMember.player.id)
+            return updatedPlayer 
+              ? { ...teamMember, player: updatedPlayer }
+              : teamMember
+          }),
+          red: teams.red.map((teamMember) => {
+            const updatedPlayer = updatedPlayers.find(p => p.id === teamMember.player.id)
+            return updatedPlayer 
+              ? { ...teamMember, player: updatedPlayer }
+              : teamMember
+          })
+        }
+        setTeams(updatedTeams)
+      }
 
       toast({
         title: '成功',
@@ -825,9 +872,9 @@ export default function TeamMaker() {
                     colorScheme="green"
                     onClick={() => {
                       if (!isMatchResultRegistered && window.confirm('試合結果を登録していませんが、チームを再生成しますか？')) {
-                        createTeams()
+                        regenerateTeams()
                       } else if (isMatchResultRegistered) {
-                        createTeams()
+                        regenerateTeams()
                       }
                     }}
                     size="sm"
