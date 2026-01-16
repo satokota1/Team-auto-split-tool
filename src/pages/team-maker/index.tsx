@@ -110,6 +110,7 @@ export default function TeamMaker() {
   const [roleSelectionMode, setRoleSelectionMode] = useState<RoleSelectionMode>('auto')
   const [isRoleAssignmentMode, setIsRoleAssignmentMode] = useState(false)
   const [isMatchResultRegistered, setIsMatchResultRegistered] = useState(false)
+  const [rateDifferenceTolerance, setRateDifferenceTolerance] = useState<number>(200) // レート差の許容値（デフォルト200）
   const teamsRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
   const { isOpen, onOpen, onClose } = useDisclosure()
@@ -356,11 +357,57 @@ export default function TeamMaker() {
         if (blueTeam.length === 5 && redTeam.length === 5) {
           const blueRating = calculateTeamRating(blueTeam)
           const redRating = calculateTeamRating(redTeam)
-          const rateDifference = Math.abs(blueRating - redRating)
+          const teamRateDifference = Math.abs(blueRating - redRating)
+          
+          // 各ロールのレート差を計算
+          let maxRoleRateDifference = 0
+          let exceedingRolesCount = 0
+          roles.forEach(role => {
+            const bluePlayer = blueTeam.find(p => p.role === role)
+            const redPlayer = redTeam.find(p => p.role === role)
+            if (bluePlayer && redPlayer) {
+              const blueRate = bluePlayer.role === bluePlayer.player.mainRole 
+                ? bluePlayer.player.mainRate 
+                : bluePlayer.player.subRate
+              const redRate = redPlayer.role === redPlayer.player.mainRole 
+                ? redPlayer.player.mainRate 
+                : redPlayer.player.subRate
+              const roleDiff = Math.abs(blueRate - redRate)
+              maxRoleRateDifference = Math.max(maxRoleRateDifference, roleDiff)
+              if (roleDiff > rateDifferenceTolerance) {
+                exceedingRolesCount++
+              }
+            }
+          })
+          
+          // より良い組み合わせの条件：
+          // 1. 許容値を超えているロール数が少ない
+          // 2. 最大ロールレート差が小さい
+          // 3. チームレートの差が小さい
+          const currentScore = {
+            exceedingRolesCount,
+            maxRoleRateDifference,
+            teamRateDifference
+          }
+          const bestScore = bestTeams ? {
+            exceedingRolesCount: roles.reduce((count, role) => {
+              const diff = calculateRoleRateDifference(bestTeams!, role)
+              return count + (diff > rateDifferenceTolerance ? 1 : 0)
+            }, 0),
+            maxRoleRateDifference: Math.max(...roles.map(role => calculateRoleRateDifference(bestTeams!, role))),
+            teamRateDifference: Math.abs(calculateTeamRating(bestTeams!.blue) - calculateTeamRating(bestTeams!.red))
+          } : { exceedingRolesCount: Infinity, maxRoleRateDifference: Infinity, teamRateDifference: Infinity }
 
-          // より良い組み合わせの条件：チームレートの差が小さい
-          if (rateDifference < minRateDifference) {
-            minRateDifference = rateDifference
+          const isBetter = 
+            currentScore.exceedingRolesCount < bestScore.exceedingRolesCount ||
+            (currentScore.exceedingRolesCount === bestScore.exceedingRolesCount && 
+             currentScore.maxRoleRateDifference < bestScore.maxRoleRateDifference) ||
+            (currentScore.exceedingRolesCount === bestScore.exceedingRolesCount && 
+             currentScore.maxRoleRateDifference === bestScore.maxRoleRateDifference &&
+             currentScore.teamRateDifference < bestScore.teamRateDifference)
+
+          if (isBetter) {
+            minRateDifference = teamRateDifference
             bestTeams = { blue: blueTeam, red: redTeam }
           }
         }
@@ -557,6 +604,45 @@ export default function TeamMaker() {
       return sum + rate
     }, 0)
     return Math.round(totalRate / team.length)
+  }
+
+  // 各ロールのレート差を計算する関数
+  const calculateRoleRateDifference = (
+    teams: { blue: { player: Player; role: GameRole }[]; red: { player: Player; role: GameRole }[] },
+    role: GameRole
+  ): number => {
+    const bluePlayer = teams.blue.find(p => p.role === role)
+    const redPlayer = teams.red.find(p => p.role === role)
+    
+    if (!bluePlayer || !redPlayer) return 0
+    
+    const blueRate = bluePlayer.role === bluePlayer.player.mainRole 
+      ? bluePlayer.player.mainRate 
+      : bluePlayer.player.subRate
+    const redRate = redPlayer.role === redPlayer.player.mainRole 
+      ? redPlayer.player.mainRate 
+      : redPlayer.player.subRate
+    
+    return Math.abs(blueRate - redRate)
+  }
+
+  // 許容値を超えているロールを取得する関数
+  const getExceedingToleranceRoles = (
+    teams: { blue: { player: Player; role: GameRole }[]; red: { player: Player; role: GameRole }[] } | null
+  ): GameRole[] => {
+    if (!teams) return []
+    
+    const exceedingRoles: GameRole[] = []
+    const roles: GameRole[] = [GameRole.TOP, GameRole.JUNGLE, GameRole.MID, GameRole.ADC, GameRole.SUP]
+    
+    roles.forEach(role => {
+      const rateDiff = calculateRoleRateDifference(teams, role)
+      if (rateDiff > rateDifferenceTolerance) {
+        exceedingRoles.push(role)
+      }
+    })
+    
+    return exceedingRoles
   }
 
   return (
@@ -832,6 +918,23 @@ export default function TeamMaker() {
                     </Radio>
                   </HStack>
                 </RadioGroup>
+                <HStack spacing={2} align="center">
+                  <Text fontSize="xs" color="gray.600">
+                    レート差許容値:
+                  </Text>
+                  <Input
+                    type="number"
+                    value={rateDifferenceTolerance}
+                    onChange={(e) => setRateDifferenceTolerance(Number(e.target.value) || 0)}
+                    size="xs"
+                    width="60px"
+                    min={0}
+                    max={1000}
+                  />
+                  <Text fontSize="xs" color="gray.600">
+                    以下
+                  </Text>
+                </HStack>
               </VStack>
               <Spacer display={{ base: 'none', md: 'block' }} />
               <HStack spacing={2}>
@@ -888,6 +991,51 @@ export default function TeamMaker() {
             <ModalBody>
               {teams && (
                 <VStack spacing={6} align="stretch">
+                  {/* レート差警告メッセージ */}
+                  {(() => {
+                    const exceedingRoles = getExceedingToleranceRoles(teams)
+                    if (exceedingRoles.length > 0) {
+                      return (
+                        <Card bg="orange.50" borderColor="orange.300" borderWidth="2px">
+                          <CardBody>
+                            <VStack spacing={2} align="stretch">
+                              <HStack>
+                                <Text fontWeight="bold" color="orange.700" fontSize="md">
+                                  警告: レート差が許容値を超えています
+                                </Text>
+                              </HStack>
+                              <Text fontSize="sm" color="orange.700">
+                                以下のロールでレート差が許容値（{rateDifferenceTolerance}）を超えています。プレイヤーの入れ替えやロール変更を検討してください。
+                              </Text>
+                              <Wrap spacing={2}>
+                                {exceedingRoles.map(role => {
+                                  const rateDiff = calculateRoleRateDifference(teams, role)
+                                  const bluePlayer = teams.blue.find(p => p.role === role)
+                                  const redPlayer = teams.red.find(p => p.role === role)
+                                  const blueRate = bluePlayer && bluePlayer.role === bluePlayer.player.mainRole 
+                                    ? bluePlayer.player.mainRate 
+                                    : bluePlayer?.player.subRate || 0
+                                  const redRate = redPlayer && redPlayer.role === redPlayer.player.mainRole 
+                                    ? redPlayer.player.mainRate 
+                                    : redPlayer?.player.subRate || 0
+                                  return (
+                                    <WrapItem key={role}>
+                                      <Tag size="md" colorScheme="orange" variant="solid">
+                                        <TagLabel>
+                                          {role}: {Math.min(blueRate, redRate)} vs {Math.max(blueRate, redRate)} (差: {rateDiff})
+                                        </TagLabel>
+                                      </Tag>
+                                    </WrapItem>
+                                  )
+                                })}
+                              </Wrap>
+                            </VStack>
+                          </CardBody>
+                        </Card>
+                      )
+                    }
+                    return null
+                  })()}
                   <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
                     {[
                       { team: teams.blue, name: 'チーム1', color: 'blue' },
@@ -905,11 +1053,15 @@ export default function TeamMaker() {
                             }
                           </Text>
                           <SimpleGrid columns={{ base: 1, sm: 2, md: 3 }} spacing={3}>
-                            {team.map((player, teamIndex) => (
+                            {team.map((player, teamIndex) => {
+                              const exceedingRoles = getExceedingToleranceRoles(teams)
+                              const isExceeding = exceedingRoles.includes(player.role)
+                              return (
                               <Card
                                 key={player.player.id}
-                                bg={useColorModeValue('gray.50', 'gray.700')}
-                                borderWidth="1px"
+                                bg={isExceeding ? 'orange.100' : useColorModeValue('gray.50', 'gray.700')}
+                                borderWidth={isExceeding ? "2px" : "1px"}
+                                borderColor={isExceeding ? "orange.400" : undefined}
                               >
                                 <Menu>
                                   <MenuButton as={Box} cursor="pointer" w="100%" h="100%">
@@ -938,6 +1090,11 @@ export default function TeamMaker() {
                                         >
                                           {getRankFromRate(player.role === player.player.mainRole ? player.player.mainRate : player.player.subRate)}
                                         </Badge>
+                                        {isExceeding && (
+                                          <Text fontSize="xs" color="orange.600" fontWeight="bold" textAlign="center" mt={1}>
+                                            レート差超過
+                                          </Text>
+                                        )}
                                       </VStack>
                                     </VStack>
                                   </MenuButton>
@@ -1045,7 +1202,7 @@ export default function TeamMaker() {
                                   </MenuList>
                                 </Menu>
                               </Card>
-                            ))}
+                            )})}
                           </SimpleGrid>
                           <Divider />
                           <HStack justify="space-between">
